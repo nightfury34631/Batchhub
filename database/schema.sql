@@ -45,9 +45,9 @@ CREATE TABLE IF NOT EXISTS notices (
 CREATE TABLE IF NOT EXISTS materials (
     id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
-    course_id INT,
+    course_id INT DEFAULT NULL,
     category VARCHAR(50) DEFAULT 'Lecture Notes',
-    file_path VARCHAR(255) NOT NULL,
+    file_path VARCHAR(255) DEFAULT NULL,
     uploaded_by INT,
     FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
     FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL,
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS project_members (
 -- update in the user
 ALTER TABLE users 
 ADD COLUMN skills TEXT DEFAULT NULL,
-ADD COLUMN gender VARCHAR(20) DEFAULT NULL;
+ADD COLUMN gender VARCHAR(20) DEFAULT NULL,
 MODIFY COLUMN profile_picture LONGTEXT DEFAULT NULL;
 
 -- 1. Make student_id and batch mandatory in users table
@@ -139,30 +139,16 @@ UPDATE events SET status = 'approved';
 ALTER TABLE events 
 MODIFY COLUMN status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending';
 
-CREATE TABLE IF NOT EXISTS materials (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    course_code VARCHAR(50) DEFAULT 'General',
-    title VARCHAR(150) NOT NULL,
-    file_url TEXT NOT NULL,
-    category VARCHAR(50) DEFAULT 'Lecture Notes', -- e.g., 'Lecture Notes', 'Assignment', 'Book', 'Question Bank'
-    status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
-    uploaded_by INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL
-);
+-- Additional tables
+ALTER TABLE materials
+ADD COLUMN IF NOT EXISTS course_code VARCHAR(50) DEFAULT 'General',
+ADD COLUMN IF NOT EXISTS file_url LONGTEXT DEFAULT NULL;
 
-CREATE TABLE IF NOT EXISTS projects (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    title VARCHAR(150) NOT NULL,
-    description TEXT,
-    tech_stack VARCHAR(255) NOT NULL, -- e.g., 'Node.js, MySQL, JavaScript'
-    repo_url TEXT NOT NULL,           -- e.g., GitHub or live demo link
-    team_members VARCHAR(255) NOT NULL, -- e.g., 'Mahathir, Nahian'
-    department VARCHAR(100) DEFAULT 'CSE',
-    created_by INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-);
+ALTER TABLE projects
+ADD COLUMN IF NOT EXISTS tech_stack VARCHAR(255) DEFAULT '',
+ADD COLUMN IF NOT EXISTS repo_url TEXT DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS team_members VARCHAR(255) DEFAULT '',
+ADD COLUMN IF NOT EXISTS department VARCHAR(100) DEFAULT 'CSE';
 
 CREATE TABLE IF NOT EXISTS project_requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -182,8 +168,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     due_date DATETIME NOT NULL,
     priority ENUM('Low', 'Medium', 'High') DEFAULT 'Medium',
     department VARCHAR(100) DEFAULT 'CSE',
+    status ENUM('pending', 'approved', 'rejected') DEFAULT 'approved',
     created_by INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
-

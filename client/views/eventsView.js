@@ -1,10 +1,9 @@
 import { api } from "../assets/js/api.js";
+import { escapeHTML, formatDate, formatTime, showToast } from "../assets/js/uiUtils.js";
 
-export function EventsView() {
+export function EventsView(navigate = null) {
   const container = document.createElement("div");
   container.className = "view-container";
-  container.style.cssText =
-    "padding: 30px; display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1000px;";
 
   const user = JSON.parse(localStorage.getItem("user")) || {
     role: "student",
@@ -13,127 +12,333 @@ export function EventsView() {
   const isCRorAdmin = user.role === "cr" || user.role === "admin";
 
   container.innerHTML = `
-        <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <h2 style="color: var(--primary-color); font-size: 24px;">Department & Campus Events</h2>
-                <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">Explore upcoming workshops, seminars, and departmental activities.</p>
+    <!-- Header -->
+    <div class="view-header">
+      <div class="view-title-group">
+        <h2>Department & Campus Events</h2>
+        <p>Explore upcoming seminars, coding hackathons, workshops, and student activities.</p>
+      </div>
+      <div class="view-actions">
+        <button class="btn-primary" id="btnOpenCreateEventModal">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>${isCRorAdmin ? "Publish Event" : "Suggest Event"}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="filter-toolbar">
+      <div class="filter-search-box">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-dim); flex-shrink: 0;">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="eventSearchInput" placeholder="Search events by title, location, or organizer...">
+      </div>
+
+      <div class="filter-tabs" id="eventFilterTabs">
+        <button class="filter-tab active" data-filter="all">All Events</button>
+        <button class="filter-tab" data-filter="approved">Approved</button>
+        <button class="filter-tab" data-filter="pending">Pending</button>
+      </div>
+    </div>
+
+    <!-- Events Grid -->
+    <div id="eventsGrid" class="app-cards-grid">
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </div>
+
+    <!-- Create Event Modal -->
+    <div id="createEventModal" class="app-modal-overlay">
+      <div class="app-modal-dialog">
+        <div class="app-modal-header">
+          <h3>${isCRorAdmin ? "Publish Campus Event" : "Suggest Event (Requires CR Approval)"}</h3>
+          <button class="app-modal-close" id="closeEventModalBtn">✕</button>
+        </div>
+        <form id="createEventForm">
+          <div class="app-modal-body">
+            <div class="form-group">
+              <label class="form-label">Event Title *</label>
+              <input type="text" id="evTitle" class="form-input" required placeholder="e.g., Algorithmic Coding Contest 2026">
             </div>
-            <span style="background: rgba(0,64,128,0.1); color: var(--primary-color); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold;">Dept: ${user.department || "CSE"}</span>
-        </div>
 
-        <div style="background: var(--card-bg); border: 1px solid var(--border-color); padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <h3 style="font-size: 16px; color: var(--primary-color); margin-bottom: 12px;">${isCRorAdmin ? "Publish New Event" : "Suggest an Event (Requires CR Approval)"}</h3>
-            <form id="addEventForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                <input type="text" id="eTitle" placeholder="Event Title (e.g., Coding Contest)" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-color);">
-                <input type="text" id="eLocation" placeholder="Location (e.g., Lab 03 / Auditorium)" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-color);">
-                <input type="datetime-local" id="eDate" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-color);">
-                <input type="text" id="eDept" value="${user.department || "CSE"}" placeholder="Department (e.g., CSE)" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-color);">
-                <textarea id="eDesc" placeholder="Event description..." style="grid-column: span 2; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-color); height: 80px;"></textarea>
-                <button type="submit" style="grid-column: span 2; padding: 10px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">${isCRorAdmin ? "Publish Event" : "Submit for Approval"}</button>
-            </form>
-        </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Location / Room *</label>
+                <input type="text" id="evLocation" class="form-input" required placeholder="e.g., Lab-3, CSE Building">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Department *</label>
+                <input type="text" id="evDept" class="form-input" value="${escapeHTML(user.department || "CSE")}" required>
+              </div>
+            </div>
 
-        <div id="eventsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; width: 100%;">
-            <p style="color: var(--text-muted);">Loading events...</p>
-        </div>
-    `;
+            <div class="form-group">
+              <label class="form-label">Event Date & Time *</label>
+              <input type="datetime-local" id="evDate" class="form-input" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Event Description & Guidelines</label>
+              <textarea id="evDesc" class="form-textarea" rows="3" placeholder="Provide registration details, eligibility, or event agenda..."></textarea>
+            </div>
+          </div>
+          <div class="app-modal-footer">
+            <button type="button" class="btn-secondary" id="cancelEventModalBtn">Cancel</button>
+            <button type="submit" class="btn-primary" id="btnSubmitEvent">
+              ${isCRorAdmin ? "Publish Event" : "Submit for Approval"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+  let allEvents = [];
+  let filterStatus = "all";
+  let searchQuery = "";
 
   async function fetchEvents() {
     try {
       const token = localStorage.getItem("token");
       const res = await api.get("/events", token);
-      renderEvents(res.events);
+      if (res.success && res.events) {
+        allEvents = res.events;
+        renderEvents();
+      } else {
+        renderEmpty("No events scheduled at this time.");
+      }
     } catch (err) {
-      document.getElementById("eventsGrid").innerHTML =
-        `<p style="color: #c62828;">Failed to load events.</p>`;
+      renderError("Failed to load events: " + err.message);
     }
   }
 
-  function renderEvents(eventsList) {
-    const grid = document.getElementById("eventsGrid");
+  function renderEvents() {
+    const grid = container.querySelector("#eventsGrid");
+    if (!grid) return;
     grid.innerHTML = "";
 
-    if (!eventsList || eventsList.length === 0) {
-      grid.innerHTML = `<p style="color: var(--text-muted); font-size: 13px;">No upcoming events found.</p>`;
+    const filtered = allEvents.filter((ev) => {
+      const matchStatus =
+        filterStatus === "all" ||
+        (filterStatus === "approved" && ev.status === "approved") ||
+        (filterStatus === "pending" && ev.status === "pending");
+
+      const matchSearch =
+        searchQuery === "" ||
+        (ev.title && ev.title.toLowerCase().includes(searchQuery)) ||
+        (ev.location && ev.location.toLowerCase().includes(searchQuery)) ||
+        (ev.organizer_name && ev.organizer_name.toLowerCase().includes(searchQuery));
+
+      return matchStatus && matchSearch;
+    });
+
+    if (filtered.length === 0) {
+      renderEmpty(
+        searchQuery || filterStatus !== "all"
+          ? "No events match your current filter criteria."
+          : "No upcoming campus events found."
+      );
       return;
     }
 
-    eventsList.forEach((ev) => {
-      let formattedDate = ev.event_date;
-      try {
-        const dateObj = new Date(ev.event_date);
-        if (!isNaN(dateObj)) {
-          formattedDate = dateObj.toLocaleString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-          });
-        }
-      } catch (e) {}
+    filtered.forEach((ev) => {
+      const card = document.createElement("div");
+      card.className = "app-card";
 
       const isPending = ev.status === "pending";
+      const statusBadge = isPending
+        ? '<span class="app-badge badge-warning">⏳ Pending Approval</span>'
+        : '<span class="app-badge badge-emerald">✓ Approved</span>';
 
-      const card = document.createElement("div");
-      // Apply distinct dashed orange border and subtle tint if pending
-      card.style.cssText = `
-                background: var(--card-bg); 
-                border: ${isPending ? "2px dashed #f57c00" : "1px solid var(--border-color)"}; 
-                border-radius: 10px; 
-                padding: 20px; 
-                display: flex; 
-                flex-direction: column; 
-                gap: 10px; 
-                box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-                position: relative;
-            `;
+      let monthStr = "EVENT";
+      let dayStr = "•";
+      let timeStr = "";
+      try {
+        const d = new Date(ev.event_date);
+        monthStr = d.toLocaleString("default", { month: "short" }).toUpperCase();
+        dayStr = d.getDate();
+        timeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      } catch (e) {}
 
       card.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <h4 style="font-size: 16px; color: var(--text-color);">${ev.title}</h4>
-                    <div style="display: flex; gap: 6px; align-items: center;">
-                        ${isPending ? '<span style="font-size: 10px; background: rgba(245,124,0,0.15); color: #f57c00; border: 1px solid #f57c00; padding: 2px 6px; border-radius: 4px; font-weight: bold;">⏳ Pending</span>' : ""}
-                        <span style="font-size: 11px; background: rgba(0,64,128,0.1); color: var(--primary-color); border: 1px solid var(--border-color); padding: 2px 6px; border-radius: 4px; font-weight: bold;">${ev.department || "CSE"}</span>
-                    </div>
-                </div>
-                <p style="font-size: 13px; color: var(--text-muted);">${ev.description || "No description provided."}</p>
-                <div style="font-size: 12px; color: var(--primary-color); display: flex; flex-direction: column; gap: 4px; margin-top: 5px; border-top: 1px solid var(--border-color); padding-top: 10px;">
-                    <span>📅 <strong>Date:</strong> ${formattedDate}</span>
-                    <span>📍 <strong>Location:</strong> ${ev.location}</span>
-                    <small style="color: var(--text-muted);">Organized by: ${ev.organizer_name || "Student"}</small>
-                </div>
-            `;
+        <div class="app-card-header">
+          <div style="display: flex; gap: 14px; align-items: flex-start; flex-grow: 1;">
+            <div style="background: var(--card-inner); border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 8px 12px; text-align: center; min-width: 52px; flex-shrink: 0;">
+              <div style="font-size: 11px; font-weight: 700; color: var(--primary-mint);">${monthStr}</div>
+              <div style="font-size: 20px; font-weight: 800; color: var(--text-primary);">${dayStr}</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1;">
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                ${statusBadge}
+                <span class="app-badge badge-muted">${escapeHTML(ev.department || "CSE")}</span>
+              </div>
+              <h3 class="app-card-title">${escapeHTML(ev.title)}</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="app-card-body">
+          <p>${escapeHTML(ev.description || "No specific guidelines provided for this event.")}</p>
+          <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--text-secondary);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary-mint);">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span><strong>Time:</strong> ${escapeHTML(timeStr)}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--primary-mint);">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+              <span><strong>Venue:</strong> ${escapeHTML(ev.location)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="app-card-footer">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span>Organized by: ${escapeHTML(ev.organizer_name || "Faculty / CR")}</span>
+          </div>
+          <div>
+            <span>${formatDate(ev.event_date)}</span>
+          </div>
+        </div>
+      `;
+
       grid.appendChild(card);
     });
   }
 
+  function renderEmpty(message) {
+    const grid = container.querySelector("#eventsGrid");
+    if (!grid) return;
+    grid.innerHTML = `
+      <div class="empty-state-box" style="grid-column: 1 / -1;">
+        <div class="empty-state-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+        </div>
+        <h4 class="empty-state-title">No Events Found</h4>
+        <p class="empty-state-desc">${escapeHTML(message)}</p>
+      </div>
+    `;
+  }
+
+  function renderError(message) {
+    const grid = container.querySelector("#eventsGrid");
+    if (!grid) return;
+    grid.innerHTML = `
+      <div class="empty-state-box" style="grid-column: 1 / -1; border-color: rgba(248, 113, 113, 0.4);">
+        <div class="empty-state-icon" style="background: var(--danger-soft); color: var(--danger-red);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <h4 class="empty-state-title" style="color: var(--danger-red);">Unable to Load Events</h4>
+        <p class="empty-state-desc">${escapeHTML(message)}</p>
+      </div>
+    `;
+  }
+
+  // Interactivity Handlers
   setTimeout(() => {
     fetchEvents();
 
-    document
-      .getElementById("addEventForm")
-      .addEventListener("submit", async (e) => {
+    // Status Filter Tabs
+    container.querySelectorAll("#eventFilterTabs .filter-tab").forEach((tab) => {
+      tab.onclick = () => {
+        container
+          .querySelectorAll("#eventFilterTabs .filter-tab")
+          .forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        filterStatus = tab.getAttribute("data-filter");
+        renderEvents();
+      };
+    });
+
+    // Search input
+    const searchInput = container.querySelector("#eventSearchInput");
+    if (searchInput) {
+      searchInput.oninput = (e) => {
+        searchQuery = e.target.value.trim().toLowerCase();
+        renderEvents();
+      };
+    }
+
+    // Modal
+    const modal = container.querySelector("#createEventModal");
+    const openBtn = container.querySelector("#btnOpenCreateEventModal");
+    const closeBtn = container.querySelector("#closeEventModalBtn");
+    const cancelBtn = container.querySelector("#cancelEventModalBtn");
+    const form = container.querySelector("#createEventForm");
+
+    const openModal = () => modal && modal.classList.add("app-modal-open");
+    const closeModal = () => modal && modal.classList.remove("app-modal-open");
+
+    if (openBtn) openBtn.onclick = openModal;
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+    if (modal) {
+      modal.onclick = (e) => {
+        if (e.target === modal) closeModal();
+      };
+    }
+
+    if (form) {
+      form.onsubmit = async (e) => {
         e.preventDefault();
+        const token = localStorage.getItem("token");
+        const submitBtn = container.querySelector("#btnSubmitEvent");
+
         const payload = {
-          title: document.getElementById("eTitle").value,
-          description: document.getElementById("eDesc").value,
-          event_date: document.getElementById("eDate").value,
-          location: document.getElementById("eLocation").value,
-          department: document.getElementById("eDept").value,
+          title: container.querySelector("#evTitle").value.trim(),
+          location: container.querySelector("#evLocation").value.trim(),
+          department: container.querySelector("#evDept").value.trim() || "CSE",
+          event_date: container.querySelector("#evDate").value,
+          description: container.querySelector("#evDesc").value.trim(),
         };
 
         try {
-          const token = localStorage.getItem("token");
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Submitting...";
+          }
+
           const res = await api.post("/events", payload, token);
-          alert(res.message);
-          document.getElementById("addEventForm").reset();
-          document.getElementById("eDept").value = user.department || "CSE";
-          fetchEvents();
+          if (res.success) {
+            showToast(res.message || "Event saved successfully!", "success");
+            closeModal();
+            form.reset();
+            fetchEvents();
+          }
         } catch (err) {
-          alert(err.message);
+          showToast(err.message, "error");
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = isCRorAdmin ? "Publish Event" : "Submit for Approval";
+          }
         }
-      });
+      };
+    }
   }, 0);
 
   return container;

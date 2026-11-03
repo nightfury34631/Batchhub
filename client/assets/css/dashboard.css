@@ -1,97 +1,443 @@
-.dashboard-grid {
-    padding: 30px;
+/* Exact Dashboard CSS matching reference screenshot */
+.dashboard-page {
+    padding: 24px 36px 40px 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    width: 100%;
+    max-width: 1400px;
+}
+
+/* 1. Welcome Header */
+.welcome-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.welcome-heading {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.welcome-subtext {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+/* 2. Top Metric Cards (Row of 3) */
+.metrics-row {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 20px;
 }
 
-.widget {
-    background: #ffffff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+.metric-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-card);
+    padding: 18px 22px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: border-color 0.15s, background-color 0.15s;
+    cursor: pointer;
+}
+
+.metric-card:hover {
+    border-color: rgba(46, 229, 157, 0.3);
+    background-color: var(--card-hover);
+}
+
+.metric-icon-box {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: var(--primary-mint-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-mint);
+    flex-shrink: 0;
+}
+
+.metric-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.metric-title {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.metric-value {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+}
+
+/* 3. Middle Section: Event Calendar + Upcoming Events (2 Columns) */
+.dashboard-middle-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.35fr;
+    gap: 20px;
+}
+
+.widget-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-card);
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 
 .widget-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    justify-content: space-between;
 }
 
-.widget-header h3 {
-    font-size: 16px;
-    color: #004080;
-}
-
-.see-all {
-    font-size: 12px;
-    color: #007bff;
-    text-decoration: none;
-}
-
-/* Widget Specific Layouts */
-.deadline-item, .notice-item {
+.widget-header-title {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid #f0f0f0;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.widget-header-title svg {
+    color: var(--primary-mint);
+}
+
+.widget-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-mint);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.widget-link:hover {
+    opacity: 0.85;
+}
+
+/* Calendar Component */
+.calendar-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.calendar-nav-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
     font-size: 14px;
-}
-
-.deadline-item:last-child, .notice-item:last-child {
-    border-bottom: none;
-}
-
-.date-badge {
-    background: #eef2f7;
-    padding: 5px 10px;
+    padding: 2px 6px;
     border-radius: 4px;
-    font-size: 11px;
-    font-weight: bold;
-    color: #004080;
-    text-align: center;
 }
 
-.schedule-timeline {
+.calendar-nav-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 4px;
+}
+
+.calendar-table th {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-align: center;
+    padding: 6px 0 10px 0;
+}
+
+.calendar-table td {
+    text-align: center;
+    padding: 5px 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    position: relative;
+    height: 38px;
+}
+
+.cal-day-cell {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    margin: 0 auto;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s;
+}
+
+.cal-day-cell:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Active Highlighted Date matching screenshot (e.g. Day 10) */
+.cal-day-cell.active {
+    background: var(--primary-mint);
+    color: #0b1418;
+    font-weight: 700;
+}
+
+/* Small event dot below date (e.g. Day 18, 24) */
+.cal-event-dot {
+    position: absolute;
+    bottom: 2px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: var(--primary-mint);
+}
+
+/* Upcoming Events List */
+.events-list-stack {
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-.schedule-row {
+.event-row-card {
+    background: var(--card-inner);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-pill);
+    padding: 12px 16px;
     display: flex;
-    gap: 15px;
-    font-size: 13px;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.event-row-card:hover {
+    border-color: rgba(46, 229, 157, 0.3);
+    background: #142329;
+}
+
+.event-date-badge {
+    background: var(--primary-mint-soft);
+    border-radius: 10px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-mint);
+    flex-shrink: 0;
+}
+
+.event-date-month {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    line-height: 1;
+}
+
+.event-date-num {
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-top: 1px;
+}
+
+.event-details {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.event-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.event-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+}
+
+.event-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.event-arrow {
+    color: var(--text-muted);
+    font-size: 16px;
+    transition: transform 0.15s, color 0.15s;
+}
+
+.event-row-card:hover .event-arrow {
+    color: var(--primary-mint);
+    transform: translateX(3px);
+}
+
+/* 4. Bottom Announcements Section */
+.announcements-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-card);
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.announcements-header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.btn-new-announcement {
+    background: var(--primary-mint);
+    color: #0b1418;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 12.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+}
+
+.btn-new-announcement:hover {
+    background: var(--primary-mint-hover);
+}
+
+.pinned-announcement-box {
+    background: var(--card-inner);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-pill);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.pinned-announcement-box:hover {
+    border-color: rgba(46, 229, 157, 0.3);
+    background: #142329;
+}
+
+.pinned-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pin-icon-wrap {
+    color: var(--primary-mint);
+    display: flex;
     align-items: center;
 }
 
-.schedule-time {
-    font-weight: bold;
-    color: #555;
-    width: 80px;
+.pinned-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
-.quick-actions-box {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.action-btn {
-    padding: 10px;
-    background: #f8f9fa;
-    border: 1px solid #ddd;
+.badge-pinned {
+    background: var(--primary-mint-soft);
+    color: var(--primary-mint);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
     border-radius: 6px;
-    text-align: left;
-    font-weight: bold;
-    cursor: pointer;
-    color: #004080;
-    transition: background 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
-.action-btn:hover {
-    background: #004080;
-    color: white;
+.pinned-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 1023px) {
+    .dashboard-page {
+        padding: 20px 20px 36px 20px;
+    }
+    .metrics-row {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+    }
+    .dashboard-middle-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 767px) {
+    .dashboard-page {
+        padding: 16px 14px 28px 14px;
+        gap: 18px;
+    }
+    .welcome-heading {
+        font-size: 20px;
+    }
+    .metrics-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .pinned-announcement-box {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .pinned-right {
+        width: 100%;
+        justify-content: space-between;
+    }
 }

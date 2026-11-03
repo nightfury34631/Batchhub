@@ -1,134 +1,246 @@
 import { api } from "../assets/js/api.js";
+import { escapeHTML, showToast } from "../assets/js/uiUtils.js";
 
-export function MembersView() {
+export function MembersView(navigate = null) {
   const container = document.createElement("div");
   container.className = "view-container";
-  container.style.cssText =
-    "padding: 30px; display: flex; flex-direction: column; gap: 20px; align-items: flex-start; justify-content: flex-start;";
 
   const currentUser = JSON.parse(localStorage.getItem("user")) || {
-    batch: "3rd Year",
+    batch: "2024",
+    department: "CSE",
   };
 
   container.innerHTML = `
-        <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
-            <div>
-                <h2 style="color: var(--primary-color); font-size: 24px;">Batch Members Directory</h2>
-                <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">Connect with batchmates, view their skills, and select teammates.</p>
-            </div>
-            <div>
-                <button id="filterToggleBtn" style="padding: 8px 16px; background: var(--primary-color); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
-                    Showing: My Batch Only
-                </button>
-            </div>
-        </div>
+    <!-- Header -->
+    <div class="view-header">
+      <div class="view-title-group">
+        <h2>Students & Batch Directory</h2>
+        <p>Explore your peers, search batchmates by technical skill, and collaborate on semester projects.</p>
+      </div>
+      <div class="view-actions">
+        <span class="app-badge badge-emerald">Batch: ${escapeHTML(currentUser.batch || "All")}</span>
+        <span class="app-badge badge-muted">Dept: ${escapeHTML(currentUser.department || "CSE")}</span>
+      </div>
+    </div>
 
-        <div id="membersGrid" style="width: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
-            <p style="color: var(--text-muted);">Loading members...</p>
-        </div>
-    `;
+    <!-- Filter & Search Toolbar -->
+    <div class="filter-toolbar">
+      <div class="filter-search-box">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-dim); flex-shrink: 0;">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="memberSearchInput" placeholder="Search by student name, ID, or skill (e.g. Python, React)...">
+      </div>
+
+      <div class="filter-tabs" id="memberFilterTabs">
+        <button class="filter-tab active" data-filter="my-batch">My Batch</button>
+        <button class="filter-tab" data-filter="all">All Students</button>
+        <button class="filter-tab" data-filter="cr">CRs & Admins</button>
+      </div>
+    </div>
+
+    <!-- Directory Grid -->
+    <div id="membersGrid" class="app-cards-grid">
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </div>
+  `;
 
   let allMembers = [];
-  let showOnlyMyBatch = true;
+  let filterScope = "my-batch";
+  let searchQuery = "";
 
   async function fetchMembers() {
     try {
       const token = localStorage.getItem("token");
       const res = await api.get("/members", token);
-      if (res.success) {
+      if (res.success && res.members) {
         allMembers = res.members;
         renderMembers();
+      } else {
+        renderEmpty("No students registered in the directory.");
       }
     } catch (err) {
-      document.getElementById("membersGrid").innerHTML =
-        `<p style="color: #c62828;">Failed to load members.</p>`;
+      renderError("Failed to fetch students directory: " + err.message);
     }
   }
 
   function renderMembers() {
-    const grid = document.getElementById("membersGrid");
+    const grid = container.querySelector("#membersGrid");
+    if (!grid) return;
     grid.innerHTML = "";
 
-    // Filter based on toggle state
-    const filtered = showOnlyMyBatch
-      ? allMembers.filter((m) => m.batch === currentUser.batch)
-      : allMembers;
+    const filtered = allMembers.filter((m) => {
+      // Scope filter
+      let matchScope = true;
+      if (filterScope === "my-batch") {
+        matchScope = !currentUser.batch || m.batch === currentUser.batch;
+      } else if (filterScope === "cr") {
+        matchScope = m.role === "cr" || m.role === "admin";
+      }
+
+      // Search query
+      const matchSearch =
+        searchQuery === "" ||
+        (m.name && m.name.toLowerCase().includes(searchQuery)) ||
+        (m.student_id && m.student_id.toLowerCase().includes(searchQuery)) ||
+        (m.skills && m.skills.toLowerCase().includes(searchQuery)) ||
+        (m.email && m.email.toLowerCase().includes(searchQuery));
+
+      return matchScope && matchSearch;
+    });
 
     if (filtered.length === 0) {
-      grid.innerHTML = `<p style="color: var(--text-muted);">No members found.</p>`;
+      renderEmpty(
+        searchQuery || filterScope !== "my-batch"
+          ? "No students match your filter or search query."
+          : "No students found in your batch directory."
+      );
       return;
     }
 
     filtered.forEach((member) => {
+      const card = document.createElement("div");
+      card.className = "app-card";
+
       const defaultAvatar =
-        "https://api.dicebear.com/7.x/bottts/svg?seed=" + member.name;
+        "https://api.dicebear.com/7.x/bottts/svg?seed=" +
+        encodeURIComponent(member.name || "Student");
       const avatar =
         member.profile_picture && member.profile_picture.trim() !== ""
           ? member.profile_picture
           : defaultAvatar;
 
-      // Format skills into clean badges
-      const skillsList = member.skills
+      const roleBadgeClass =
+        member.role === "admin"
+          ? "badge-danger"
+          : member.role === "cr"
+          ? "badge-warning"
+          : "badge-muted";
+
+      // Split skills
+      const skillPills = member.skills
         ? member.skills
             .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .slice(0, 5)
             .map(
               (s) =>
-                `<span style="background: rgba(0,64,128,0.1); color: var(--primary-color); padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">${s.trim()}</span>`,
+                `<span class="app-badge badge-emerald" style="font-size: 11px; padding: 2px 7px;">${escapeHTML(s)}</span>`
             )
-            .join("")
-        : '<span style="color: var(--text-muted); font-size: 12px;">No skills listed</span>';
+            .join(" ")
+        : '<span style="color: var(--text-dim); font-size: 12px;">No skills listed</span>';
 
-      const card = document.createElement("div");
-      card.style.cssText =
-        "background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);";
       card.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <img src="${avatar}" alt="${member.name}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-color); background: #eee;">
-                    <div>
-                        <h4 style="font-size: 16px; color: var(--text-color); margin-bottom: 2px;">${member.name}</h4>
-                        <p style="font-size: 12px; color: var(--text-muted);">${member.department || "CSE"} • Batch: ${member.batch || "N/A"}</p>
-                    </div>
-                </div>
-                <div style="font-size: 12px; color: var(--text-muted);">
-                    <strong>Student ID:</strong> ${member.student_id || "N/A"}
-                </div>
-                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
-                    ${skillsList}
-                </div>
-                <button class="select-member-btn" data-name="${member.name}" style="margin-top: 10px; padding: 8px; background: transparent; border: 1px solid var(--primary-color); color: var(--primary-color); border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
-                    Select Teammate
-                </button>
-            `;
+        <div style="display: flex; gap: 14px; align-items: center;">
+          <img src="${avatar}" alt="${escapeHTML(member.name)}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; background: #1a2f37; border: 2px solid var(--card-border); flex-shrink: 0;">
+          <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <h3 class="app-card-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(member.name)}</h3>
+              <span class="app-badge ${roleBadgeClass}">${escapeHTML(member.role || "student").toUpperCase()}</span>
+            </div>
+            <p style="font-size: 12px; color: var(--text-muted);">${escapeHTML(member.department || "CSE")} • Batch: ${escapeHTML(member.batch || "N/A")}</p>
+          </div>
+        </div>
 
-      // Select button interaction
-      card.querySelector(".select-member-btn").onclick = (e) => {
-        const btn = e.target;
-        if (btn.style.background === "var(--primary-color)") {
-          btn.style.background = "transparent";
-          btn.style.color = "var(--primary-color)";
-          btn.textContent = "Select Teammate";
-        } else {
-          btn.style.background = "var(--primary-color)";
-          btn.style.color = "white";
-          btn.textContent = "Selected ✓";
-        }
-      };
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--text-secondary); background: var(--card-inner); padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--card-border);">
+          <div><strong style="color: var(--text-muted);">ID:</strong> ${escapeHTML(member.student_id || "Not Assigned")}</div>
+          <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><strong style="color: var(--text-muted);">Email:</strong> ${escapeHTML(member.email || "N/A")}</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 6px; flex-grow: 1;">
+          <span style="font-size: 11.5px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px;">Skills & Competencies</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            ${skillPills}
+          </div>
+        </div>
+
+        <div class="app-card-footer" style="padding-top: 12px;">
+          <button class="btn-secondary btn-sm select-teammate-btn" data-name="${escapeHTML(member.name)}" style="width: 100%; justify-content: center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="8.5" cy="7" r="4"></circle>
+              <line x1="20" y1="8" x2="20" y2="14"></line>
+              <line x1="23" y1="11" x2="17" y2="11"></line>
+            </svg>
+            <span>Invite to Project</span>
+          </button>
+        </div>
+      `;
+
+      const selectBtn = card.querySelector(".select-teammate-btn");
+      if (selectBtn) {
+        selectBtn.onclick = () => {
+          showToast(`Selected ${member.name}. Open Projects to invite them to a team!`, "info");
+          if (navigate) navigate("projects");
+        };
+      }
 
       grid.appendChild(card);
     });
   }
 
+  function renderEmpty(message) {
+    const grid = container.querySelector("#membersGrid");
+    if (!grid) return;
+    grid.innerHTML = `
+      <div class="empty-state-box" style="grid-column: 1 / -1;">
+        <div class="empty-state-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+          </svg>
+        </div>
+        <h4 class="empty-state-title">No Students Found</h4>
+        <p class="empty-state-desc">${escapeHTML(message)}</p>
+      </div>
+    `;
+  }
+
+  function renderError(message) {
+    const grid = container.querySelector("#membersGrid");
+    if (!grid) return;
+    grid.innerHTML = `
+      <div class="empty-state-box" style="grid-column: 1 / -1; border-color: rgba(248, 113, 113, 0.4);">
+        <div class="empty-state-icon" style="background: var(--danger-soft); color: var(--danger-red);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <h4 class="empty-state-title" style="color: var(--danger-red);">Directory Error</h4>
+        <p class="empty-state-desc">${escapeHTML(message)}</p>
+      </div>
+    `;
+  }
+
   setTimeout(() => {
     fetchMembers();
 
-    document.getElementById("filterToggleBtn").onclick = () => {
-      showOnlyMyBatch = !showOnlyMyBatch;
-      const btn = document.getElementById("filterToggleBtn");
-      btn.textContent = showOnlyMyBatch
-        ? "Showing: My Batch Only"
-        : "Showing: All Batches";
-      renderMembers();
-    };
+    // Tabs
+    container.querySelectorAll("#memberFilterTabs .filter-tab").forEach((tab) => {
+      tab.onclick = () => {
+        container
+          .querySelectorAll("#memberFilterTabs .filter-tab")
+          .forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        filterScope = tab.getAttribute("data-filter");
+        renderMembers();
+      };
+    });
+
+    // Search
+    const searchInput = container.querySelector("#memberSearchInput");
+    if (searchInput) {
+      searchInput.oninput = (e) => {
+        searchQuery = e.target.value.trim().toLowerCase();
+        renderMembers();
+      };
+    }
   }, 0);
 
   return container;

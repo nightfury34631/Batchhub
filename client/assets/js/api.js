@@ -11,7 +11,7 @@ export const api = {
       body: JSON.stringify(data),
     });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.message || "Something went wrong");
+    if (!response.ok) throw new Error(result.message || result.error || "Request failed");
     return result;
   },
 
@@ -21,7 +21,7 @@ export const api = {
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.message || "Something went wrong");
+    if (!response.ok) throw new Error(result.message || result.error || "Request failed");
     return result;
   },
 
@@ -35,7 +35,20 @@ export const api = {
       body: JSON.stringify(data),
     });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.message || "Something went wrong");
+    if (!response.ok) throw new Error(result.message || result.error || "Request failed");
+    return result;
+  },
+
+  async delete(endpoint, token = null) {
+    const headers = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: "DELETE",
+      headers,
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || result.error || "Request failed");
     return result;
   },
 };

@@ -1,121 +1,315 @@
 import { api } from "../assets/js/api.js";
+import { escapeHTML, formatDate, showToast } from "../assets/js/uiUtils.js";
 
-export function ResourcesView() {
+export function ResourcesView(navigate = null) {
   const container = document.createElement("div");
   container.className = "view-container";
-  container.style.cssText =
-    "padding: 30px; display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1000px;";
 
   const user = JSON.parse(localStorage.getItem("user")) || { role: "student" };
+  const isCRorAdmin = user.role === "cr" || user.role === "admin";
 
   container.innerHTML = `
-        <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <h2 style="color: var(--primary-color); font-size: 24px;">Academic Resources & Notes</h2>
-                <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">Access course materials, lecture notes, assignments, and question banks.</p>
+    <!-- Header -->
+    <div class="view-header">
+      <div class="view-title-group">
+        <h2>Academic Resources & Study Materials</h2>
+        <p>Curated course notes, slides, assignments, books, and previous examination questions.</p>
+      </div>
+      <div class="view-actions">
+        <button class="btn-primary" id="btnOpenUploadModal">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          <span>Upload Material</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter & Search Toolbar -->
+    <div class="filter-toolbar">
+      <div class="filter-search-box">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-dim); flex-shrink: 0;">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="resourceSearchInput" placeholder="Search by title, course code (e.g. CSE-3201), or uploader...">
+      </div>
+
+      <div class="filter-tabs" id="resourceCategoryTabs">
+        <button class="filter-tab active" data-cat="all">All</button>
+        <button class="filter-tab" data-cat="Lecture Notes">Lecture Notes</button>
+        <button class="filter-tab" data-cat="Assignment">Assignment</button>
+        <button class="filter-tab" data-cat="Book">Books</button>
+        <button class="filter-tab" data-cat="Question Bank">Question Bank</button>
+      </div>
+    </div>
+
+    <!-- Resources Grid -->
+    <div id="resourcesGrid" class="app-cards-grid">
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </div>
+
+    <!-- Upload Resource Modal -->
+    <div id="uploadResourceModal" class="app-modal-overlay">
+      <div class="app-modal-dialog">
+        <div class="app-modal-header">
+          <h3>Upload Academic Resource</h3>
+          <button class="app-modal-close" id="closeUploadModalBtn">✕</button>
+        </div>
+        <form id="uploadResourceForm">
+          <div class="app-modal-body">
+            <div class="form-group">
+              <label class="form-label">Material Title *</label>
+              <input type="text" id="resTitle" class="form-input" required placeholder="e.g., Operating Systems Chapter 3 - CPU Scheduling">
             </div>
-            <span style="background: rgba(0,64,128,0.1); color: var(--primary-color); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold;">Role: ${user.role.toUpperCase()}</span>
-        </div>
 
-        <!-- Upload Resource Form -->
-        <div style="background: var(--card-bg); border: 1px solid var(--border-color); padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <h3 style="font-size: 16px; color: var(--primary-color); margin-bottom: 12px;">Upload Study Material ${user.role === "student" ? "(Requires CR Approval)" : ""}</h3>
-            <form id="uploadResourceForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                <input type="text" id="resTitle" placeholder="Resource Title (e.g., Chapter 3 Lecture Slides)" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-color);">
-                <input type="text" id="resCourse" placeholder="Course Code (e.g., CSE-3201 or 'General')" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-color);">
-                <select id="resCategory" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-color);">
-                    <option value="Lecture Notes">Lecture Notes</option>
-                    <option value="Assignment">Assignment</option>
-                    <option value="Book">Book / Reference</option>
-                    <option value="Question Bank">Question Bank</option>
-                    <option value="Other">Other</option>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Course Code *</label>
+                <input type="text" id="resCourse" class="form-input" required placeholder="e.g., CSE-3201 or General">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Category *</label>
+                <select id="resCategory" class="form-select">
+                  <option value="Lecture Notes">Lecture Notes</option>
+                  <option value="Assignment">Assignment Solution</option>
+                  <option value="Book">Reference Book</option>
+                  <option value="Question Bank">Question Bank</option>
+                  <option value="Other">Other Document</option>
                 </select>
-                <input type="url" id="resUrl" placeholder="File Link (Google Drive / GitHub URL)" required style="padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-color); color: var(--text-color);">
-                <button type="submit" style="grid-column: span 2; padding: 10px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Upload Resource</button>
-            </form>
-        </div>
+              </div>
+            </div>
 
-        <div id="resourcesGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; width: 100%;">
-            <p style="color: var(--text-muted);">Loading resources...</p>
-        </div>
-    `;
+            <div class="form-group">
+              <label class="form-label">File Link / Cloud Storage URL (Google Drive / GitHub / OneDrive) *</label>
+              <input type="url" id="resUrl" class="form-input" required placeholder="https://drive.google.com/file/d/...">
+            </div>
+
+            ${
+              !isCRorAdmin
+                ? `<div style="font-size: 12px; color: var(--warning-orange); background: var(--warning-soft); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(251,191,36,0.25);">
+                    Note: Student uploads require CR or Admin verification before appearing publicly.
+                   </div>`
+                : ""
+            }
+          </div>
+          <div class="app-modal-footer">
+            <button type="button" class="btn-secondary" id="cancelUploadModalBtn">Cancel</button>
+            <button type="submit" class="btn-primary" id="btnSubmitResource">
+              ${isCRorAdmin ? "Publish Resource" : "Submit for Verification"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+  let allResources = [];
+  let currentCategory = "all";
+  let searchQuery = "";
 
   async function fetchResources() {
     try {
       const token = localStorage.getItem("token");
       const res = await api.get("/resources", token);
-      renderResources(res.materials);
+      if (res.success && res.materials) {
+        allResources = res.materials;
+        renderResources();
+      } else {
+        renderEmpty("No academic resources uploaded yet.");
+      }
     } catch (err) {
-      document.getElementById("resourcesGrid").innerHTML =
-        `<p style="color: #c62828;">Failed to load resources.</p>`;
+      renderError("Failed to load study materials: " + err.message);
     }
   }
 
-  function renderResources(materialsList) {
-    const grid = document.getElementById("resourcesGrid");
+  function renderResources() {
+    const grid = container.querySelector("#resourcesGrid");
+    if (!grid) return;
     grid.innerHTML = "";
 
-    if (!materialsList || materialsList.length === 0) {
-      grid.innerHTML = `<p style="color: var(--text-muted); font-size: 13px;">No resources uploaded yet.</p>`;
+    const filtered = allResources.filter((m) => {
+      const matchCat = currentCategory === "all" || m.category === currentCategory;
+      const matchSearch =
+        searchQuery === "" ||
+        (m.title && m.title.toLowerCase().includes(searchQuery)) ||
+        (m.course_code && m.course_code.toLowerCase().includes(searchQuery)) ||
+        (m.uploader_name && m.uploader_name.toLowerCase().includes(searchQuery));
+      return matchCat && matchSearch;
+    });
+
+    if (filtered.length === 0) {
+      renderEmpty(
+        searchQuery || currentCategory !== "all"
+          ? "No materials match your current category or search."
+          : "No study materials available yet."
+      );
       return;
     }
 
-    materialsList.forEach((mat) => {
-      const isPending = mat.status === "pending";
+    filtered.forEach((mat) => {
       const card = document.createElement("div");
-      card.style.cssText = `
-                background: var(--card-bg); 
-                border: ${isPending ? "2px dashed #f57c00" : "1px solid var(--border-color)"}; 
-                border-radius: 10px; 
-                padding: 20px; 
-                display: flex; 
-                flex-direction: column; 
-                gap: 10px; 
-                box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            `;
+      card.className = "app-card";
+
+      const catBadge =
+        mat.category === "Lecture Notes"
+          ? "badge-emerald"
+          : mat.category === "Book"
+          ? "badge-info"
+          : mat.category === "Question Bank"
+          ? "badge-warning"
+          : "badge-muted";
 
       card.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <h4 style="font-size: 16px; color: var(--text-color);">${mat.title}</h4>
-                    <div style="display: flex; gap: 6px; align-items: center;">
-                        ${isPending ? '<span style="font-size: 10px; background: rgba(245,124,0,0.15); color: #f57c00; border: 1px solid #f57c00; padding: 2px 6px; border-radius: 4px; font-weight: bold;">⏳ Pending</span>' : ""}
-                        <span style="font-size: 11px; background: rgba(0,64,128,0.1); color: var(--primary-color); border: 1px solid var(--border-color); padding: 2px 6px; border-radius: 4px; font-weight: bold;">${mat.course_code}</span>
-                    </div>
-                </div>
-                <p style="font-size: 12px; color: var(--text-muted);">Category: <strong>${mat.category}</strong></p>
-                <div style="font-size: 12px; display: flex; flex-direction: column; gap: 4px; margin-top: 5px; border-top: 1px solid var(--border-color); padding-top: 10px;">
-                    <small style="color: var(--text-muted);">Uploaded by: ${mat.uploader_name || "Student"}</small>
-                    <a href="${mat.file_url}" target="_blank" style="margin-top: 6px; padding: 8px; background: var(--primary-color); color: white; text-align: center; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px;">📥 Download / Open Link</a>
-                </div>
-            `;
+        <div class="app-card-header">
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <span class="app-badge badge-muted">${escapeHTML(mat.course_code || "General")}</span>
+            <span class="app-badge ${catBadge}">${escapeHTML(mat.category || "Lecture Notes")}</span>
+            ${mat.status === "pending" ? '<span class="app-badge badge-warning">⏳ Pending</span>' : ""}
+          </div>
+        </div>
+
+        <h3 class="app-card-title">${escapeHTML(mat.title)}</h3>
+
+        <div class="app-card-body" style="font-size: 12.5px; color: var(--text-muted);">
+          <div>Uploaded by: <strong style="color: var(--text-secondary);">${escapeHTML(mat.uploader_name || "Batch Member")}</strong></div>
+          <div>Added on: ${formatDate(mat.created_at)}</div>
+        </div>
+
+        <div class="app-card-footer" style="padding-top: 14px;">
+          <a href="${escapeHTML(mat.file_url)}" target="_blank" rel="noopener noreferrer" class="btn-primary btn-sm" style="width: 100%; justify-content: center; text-decoration: none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Open & Download Document</span>
+          </a>
+        </div>
+      `;
+
       grid.appendChild(card);
     });
+  }
+
+  function renderEmpty(message) {
+    const grid = container.querySelector("#resourcesGrid");
+    if (!grid) return;
+    grid.innerHTML = `
+      <div class="empty-state-box" style="grid-column: 1 / -1;">
+        <div class="empty-state-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+        </div>
+        <h4 class="empty-state-title">No Resources Found</h4>
+        <p class="empty-state-desc">${escapeHTML(message)}</p>
+      </div>
+    `;
+  }
+
+  function renderError(message) {
+    const grid = container.querySelector("#resourcesGrid");
+    if (!grid) return;
+    grid.innerHTML = `
+      <div class="empty-state-box" style="grid-column: 1 / -1; border-color: rgba(248, 113, 113, 0.4);">
+        <div class="empty-state-icon" style="background: var(--danger-soft); color: var(--danger-red);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <h4 class="empty-state-title" style="color: var(--danger-red);">Resource Library Error</h4>
+        <p class="empty-state-desc">${escapeHTML(message)}</p>
+      </div>
+    `;
   }
 
   setTimeout(() => {
     fetchResources();
 
-    document
-      .getElementById("uploadResourceForm")
-      .addEventListener("submit", async (e) => {
+    // Category Tabs
+    container.querySelectorAll("#resourceCategoryTabs .filter-tab").forEach((tab) => {
+      tab.onclick = () => {
+        container
+          .querySelectorAll("#resourceCategoryTabs .filter-tab")
+          .forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        currentCategory = tab.getAttribute("data-cat");
+        renderResources();
+      };
+    });
+
+    // Search Input
+    const searchInput = container.querySelector("#resourceSearchInput");
+    if (searchInput) {
+      searchInput.oninput = (e) => {
+        searchQuery = e.target.value.trim().toLowerCase();
+        renderResources();
+      };
+    }
+
+    // Modal
+    const modal = container.querySelector("#uploadResourceModal");
+    const openBtn = container.querySelector("#btnOpenUploadModal");
+    const closeBtn = container.querySelector("#closeUploadModalBtn");
+    const cancelBtn = container.querySelector("#cancelUploadModalBtn");
+    const form = container.querySelector("#uploadResourceForm");
+
+    const openModal = () => modal && modal.classList.add("app-modal-open");
+    const closeModal = () => modal && modal.classList.remove("app-modal-open");
+
+    if (openBtn) openBtn.onclick = openModal;
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+    if (modal) {
+      modal.onclick = (e) => {
+        if (e.target === modal) closeModal();
+      };
+    }
+
+    if (form) {
+      form.onsubmit = async (e) => {
         e.preventDefault();
+        const token = localStorage.getItem("token");
+        const submitBtn = container.querySelector("#btnSubmitResource");
+
         const payload = {
-          title: document.getElementById("resTitle").value,
-          course_code: document.getElementById("resCourse").value,
-          category: document.getElementById("resCategory").value,
-          file_url: document.getElementById("resUrl").value,
+          title: container.querySelector("#resTitle").value.trim(),
+          course_code: container.querySelector("#resCourse").value.trim() || "General",
+          category: container.querySelector("#resCategory").value,
+          file_url: container.querySelector("#resUrl").value.trim(),
         };
 
         try {
-          const token = localStorage.getItem("token");
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Uploading...";
+          }
+
           const res = await api.post("/resources", payload, token);
-          alert(res.message);
-          document.getElementById("uploadResourceForm").reset();
-          fetchResources();
+          if (res.success) {
+            showToast(res.message || "Resource uploaded successfully!", "success");
+            closeModal();
+            form.reset();
+            fetchResources();
+          }
         } catch (err) {
-          alert(err.message);
+          showToast(err.message, "error");
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = isCRorAdmin ? "Publish Resource" : "Submit for Verification";
+          }
         }
-      });
+      };
+    }
   }, 0);
 
   return container;

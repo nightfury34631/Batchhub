@@ -1,10 +1,10 @@
 export function initTheme() {
-  const savedTheme = localStorage.getItem("theme") || "light";
+  const savedTheme = localStorage.getItem("theme") || "dark";
   document.documentElement.setAttribute("data-theme", savedTheme);
 }
 
 export function toggleTheme() {
-  const currentTheme = document.documentElement.getAttribute("data-theme");
+  const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
   const newTheme = currentTheme === "dark" ? "light" : "dark";
   document.documentElement.setAttribute("data-theme", newTheme);
   localStorage.setItem("theme", newTheme);
