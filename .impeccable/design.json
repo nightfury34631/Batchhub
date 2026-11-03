@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-04T01:24:20Z",
+  "title": "Design System: BatchHub",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Vivid Mint",
+        "canonical": "#2EE59D",
+        "tonalRamp": ["#06281b", "#0d4e34", "#157750", "#1ea36d", "#2ee59d", "#64edb6", "#99f3cf", "#ccf9e7"]
+      },
+      "bg-canvas": {
+        "role": "neutral",
+        "displayName": "Obsidian Canvas",
+        "canonical": "#0B1418",
+        "tonalRamp": ["#04080a", "#070d10", "#0b1418", "#111f26", "#1a2f3a", "#294b5c", "#3c6d85", "#5c9bb9"]
+      },
+      "surface-card": {
+        "role": "neutral",
+        "displayName": "Card Surface",
+        "canonical": "#111D22",
+        "tonalRamp": ["#070c0e", "#0c1518", "#111d22", "#1a2b32", "#233943", "#345564", "#49768b", "#669fb8"]
+      },
+      "border-subtle": {
+        "role": "neutral",
+        "displayName": "Slate Border",
+        "canonical": "#1A2F37",
+        "tonalRamp": ["#0b1418", "#111f25", "#1a2f37", "#25424d", "#335a69", "#44788c", "#5fa1b9", "#89c1d5"]
+      },
+      "danger": {
+        "role": "secondary",
+        "displayName": "Urgent Coral",
+        "canonical": "#F87171",
+        "tonalRamp": ["#3b1111", "#681e1e", "#9e2d2d", "#ce3b3b", "#f87171", "#faa0a0", "#fcc9c9", "#fee8e8"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Welcome greetings and page anchors." },
+      "headline": { "displayName": "Headline", "purpose": "Section headings and view titles." },
+      "title": { "displayName": "Title", "purpose": "Card titles and widget headers." },
+      "body": { "displayName": "Body", "purpose": "Descriptions and narrative content." },
+      "label": { "displayName": "Label", "purpose": "Status badges and metadata chips." }
+    },
+    "shadows": [
+      { "name": "overlay-float", "value": "0 16px 36px rgba(0, 0, 0, 0.65)", "purpose": "Dropdowns and modal containers." },
+      { "name": "sidebar-hover", "value": "6px 0 28px rgba(0, 0, 0, 0.55)", "purpose": "Desktop expanded sidebar drawer." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default easing for navigation expansion and modals." },
+      { "name": "duration-fast", "value": "150ms", "purpose": "Button and link hover state changes." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "High-emphasis action button with vivid mint fill.",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\"><path d=\"M12 5v14M5 12h14\"/></svg><span>New Task</span></button>",
+      "css": ".ds-btn-primary { background: #2EE59D; color: #0B1418; font-weight: 700; font-size: 13.5px; border: none; border-radius: 12px; padding: 9px 18px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.15s, transform 0.1s; } .ds-btn-primary:hover { background: #26C988; } .ds-btn-primary:active { transform: scale(0.98); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Tonal inset button for secondary navigation or filter options.",
+      "html": "<button class=\"ds-btn-secondary\"><span>Filter Records</span></button>",
+      "css": ".ds-btn-secondary { background: #0E181C; border: 1px solid #1A2F37; color: #D9E3E7; font-weight: 600; font-size: 13.5px; border-radius: 12px; padding: 9px 16px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.15s; } .ds-btn-secondary:hover { background: #15242B; color: #FFFFFF; border-color: rgba(255, 255, 255, 0.15); }"
+    },
+    {
+      "name": "Standard Card",
+      "kind": "card",
+      "refersTo": "card-standard",
+      "description": "Primary content container with subtle border illumination on hover.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">Algorithm Assignment 3</div><div class=\"ds-card-body\">Complete dynamic programming exercises 1 through 4 before lab deadline.</div><div class=\"ds-card-footer\"><span>Due: Oct 28</span><span class=\"ds-badge-warning\">Due Soon</span></div></div>",
+      "css": ".ds-card { background: #111D22; border: 1px solid #1A2F37; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px; transition: border-color 0.18s, background-color 0.18s; } .ds-card:hover { border-color: rgba(46, 229, 157, 0.25); background-color: #15242B; } .ds-card-title { font-size: 16px; font-weight: 700; color: #FFFFFF; } .ds-card-body { font-size: 13.5px; color: #7B949E; line-height: 1.5; } .ds-card-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 14px; border-top: 1px solid #1A2F37; font-size: 12.5px; color: #5C747D; } .ds-badge-warning { background: rgba(251, 191, 36, 0.12); color: #FBBF24; border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 700; }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input-standard",
+      "description": "Deep inset search bar with responsive focus ring and keyboard shortcut badge.",
+      "html": "<div class=\"ds-search-box\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#7B949E\" stroke-width=\"2\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"M21 21l-4.35-4.35\"/></svg><input type=\"text\" placeholder=\"Search tasks, peers, notices...\" class=\"ds-input\"><span class=\"ds-kbd\">/</span></div>",
+      "css": ".ds-search-box { display: flex; align-items: center; gap: 10px; background: #0E181C; border: 1px solid #1A2F37; border-radius: 20px; padding: 8px 16px; width: 100%; max-width: 380px; transition: border-color 0.15s; } .ds-search-box:focus-within { border-color: rgba(46, 229, 157, 0.25); } .ds-input { background: none; border: none; outline: none; color: #FFFFFF; font-size: 13px; width: 100%; } .ds-kbd { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #7B949E; font-size: 10.5px; font-weight: 600; padding: 2px 6px; border-radius: 6px; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-status",
+      "description": "Compact state indicators for status and priority tracking.",
+      "html": "<div style=\"display:flex;gap:8px;\"><span class=\"ds-badge ds-badge-emerald\">Active</span><span class=\"ds-badge ds-badge-danger\">Overdue</span><span class=\"ds-badge ds-badge-info\">Approved</span></div>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.3px; } .ds-badge-emerald { background: rgba(46, 229, 157, 0.12); color: #2EE59D; border: 1px solid rgba(46, 229, 157, 0.25); } .ds-badge-danger { background: rgba(248, 113, 113, 0.12); color: #F87171; border: 1px solid rgba(248, 113, 113, 0.3); } .ds-badge-info { background: rgba(56, 189, 248, 0.12); color: #38BDF8; border: 1px solid rgba(56, 189, 248, 0.3); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Nocturnal Observatory",
+    "overview": "BatchHub is designed as a calm, dark-adapted academic workspace built for deep concentration, night-owl study cycles, and high-signal cohort collaboration. The interface treats screen real estate like a precision instrument: dark oceanic obsidian surfaces recede into the background, allowing vital deadlines, urgent announcements, and peer project activity to emerge as luminous mint and emerald beacons.",
+    "keyCharacteristics": [
+      "Nocturnal Tonal Depth: Multi-tiered slate-obsidian backgrounds (#0B1418, #0E181C, #111D22) create spatial hierarchy without heavy shadows.",
+      "Selective Luminous Accents: Vivid mint (#2EE59D) is reserved strictly for high-value interactive anchors, active routes, and primary actions.",
+      "Refined Pill-Form Geometry: Gentle 12px pill curves and 16px container radiuses impart tactile softness while preserving academic seriousness.",
+      "Anti-References: Cluttered multi-color student templates, flashy gamer neon, and bureaucratic institutional LMS tables."
+    ],
+    "rules": [
+      {
+        "name": "The Rarity Rule",
+        "body": "Vivid Mint (#2EE59D) must cover <= 10% of any viewport. Its power comes from restraint; when everything glows, nothing is urgent.",
+        "section": "colors"
+      },
+      {
+        "name": "The No-White-Surface Rule",
+        "body": "Pure white (#FFFFFF) is strictly for typography and icons; it is never used as a background container color.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Figures Rule",
+        "body": "All deadlines, countdowns, timestamps, and metric counts must render with consistent character widths to avoid layout jitter.",
+        "section": "typography"
+      },
+      {
+        "name": "The Glow-Over-Shadow Rule",
+        "body": "Never use diffuse colored drop shadows under cards. Convey focus and selection with a 1px border stroke tint rather than fuzzy outer glows.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use tonal surface step-ups (#0B1418 -> #0E181C -> #111D22 -> #15242B) to express hierarchy.",
+      "Do reserve #2EE59D for primary calls-to-action, active indicators, and critical badges.",
+      "Do use 1px subtle borders (#1A2F37) to separate adjacent dark sections cleanly.",
+      "Do provide instant feedback via toast messages or inline state transitions rather than native browser alert().",
+      "Do maintain a consistent 12px pill radius on interactive inputs and buttons."
+    ],
+    "donts": [
+      "Don't use multi-color neon gradients or rainbow accents across cards.",
+      "Don't use pure black (#000000) or pure white (#FFFFFF) for background container surfaces.",
+      "Don't allow primary mint accents to exceed 10% of the visible viewport area.",
+      "Don't use heavy colored drop shadows under resting cards.",
+      "Don't display raw database timestamps without humanized formatting (e.g., 'Oct 24, 2026')."
+    ]
+  }
+}
