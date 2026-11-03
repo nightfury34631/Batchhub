@@ -185,3 +185,25 @@ CREATE TABLE IF NOT EXISTS task_completions (
     CONSTRAINT fk_task_completions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+
+-- Notifications Table (Phase 2)
+CREATE TABLE IF NOT EXISTS notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    related_entity_type VARCHAR(50) DEFAULT NULL,
+    related_entity_id INT DEFAULT NULL,
+    is_read TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_read (user_id, is_read, created_at),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+ALTER TABLE notices
+ADD COLUMN IF NOT EXISTS is_pinned TINYINT(1) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS priority ENUM('Normal', 'Important', 'Urgent') DEFAULT 'Normal';
+
+ALTER TABLE project_requests
+ADD COLUMN IF NOT EXISTS request_type ENUM('join_request', 'invitation') DEFAULT 'join_request';

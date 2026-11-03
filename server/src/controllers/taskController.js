@@ -1,31 +1,46 @@
 import db from "../config/db.js";
+import { createNotification, broadcastNotification } from "./notificationController.js";
 
-// Get all approved active tasks (with current user's completion status)
+// Get all active approved tasks for the user's batch, joined with their individual completion status
 export const getTasks = async (req, res) => {
   try {
     const userId = req.user.id;
+    const userRole = req.user.role;
 
-    // Fetch tasks and check if the current user completed them
+    // 1. Fetch approved tasks with individual student completion flag
     const [tasks] = await db.execute(
       `SELECT t.*, u.name as creator_name,
               CASE WHEN tc.id IS NOT NULL THEN 1 ELSE 0 END as is_completed,
               tc.completed_at
-       FROM tasks t 
-       LEFT JOIN users u ON t.created_by = u.id 
+       FROM tasks t
+       LEFT JOIN users u ON t.created_by = u.id
        LEFT JOIN task_completions tc ON t.id = tc.task_id AND tc.user_id = ?
-       WHERE t.status = 'approved' AND t.due_date >= NOW()
+       WHERE t.status = 'approved'
        ORDER BY t.due_date ASC`,
       [userId]
     );
 
-    res.status(200).json({ success: true, tasks });
+    // 2. If user is CR or Admin, also fetch pending tasks submitted by students
+    let pendingTasks = [];
+    if (userRole === "cr" || userRole === "admin") {
+      const [pTasks] = await db.execute(
+        `SELECT t.*, u.name as creator_name
+         FROM tasks t
+         LEFT JOIN users u ON t.created_by = u.id
+         WHERE t.status = 'pending'
+         ORDER BY t.created_at DESC`
+      );
+      pendingTasks = pTasks;
+    }
+
+    res.status(200).json({ success: true, tasks, pendingTasks });
   } catch (error) {
     console.error("Get Tasks Error:", error.message);
     res.status(500).json({ success: false, message: "Failed to retrieve tasks." });
   }
 };
 
-// Create Task / Deadline (Students need CR approval, CRs/Admins auto-approve)
+// Create a new task (CRs/Admins auto-approved, Students require approval)
 export const createTask = async (req, res) => {
   try {
     const { title, description, course_code, due_date, priority, department } = req.body;
@@ -37,53 +52,63 @@ export const createTask = async (req, res) => {
     }
 
     if (!due_date) {
-      return res.status(400).json({ success: false, message: "Due date is required." });
+      return res.status(400).json({ success: false, message: "Task due date is required." });
     }
 
-    const validPriorities = ["Low", "Medium", "High"];
-    const assignedPriority = validPriorities.includes(priority) ? priority : "Medium";
+    const cleanTitle = title.trim();
+    const cleanDesc = description ? description.trim() : "";
+    const cleanCourse = course_code ? course_code.trim() : "General";
+    const cleanPriority = ["Low", "Medium", "High"].includes(priority) ? priority : "Medium";
+    const cleanDept = department ? department.trim() : "CSE";
 
+    // Enforce Approval: CRs/Admins auto-approved, Students pending
     const status = userRole === "cr" || userRole === "admin" ? "approved" : "pending";
 
     const [result] = await db.execute(
-      `INSERT INTO tasks (title, description, course_code, due_date, priority, department, created_by, status) 
+      `INSERT INTO tasks (title, description, course_code, due_date, priority, department, status, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        title.trim(),
-        description ? description.trim() : "",
-        course_code ? course_code.trim() : "General",
-        due_date,
-        assignedPriority,
-        department ? department.trim() : "CSE",
-        userId,
-        status,
-      ]
+      [cleanTitle, cleanDesc, cleanCourse, due_date, cleanPriority, cleanDept, status, userId]
     );
 
-    const message =
-      status === "pending"
-        ? "Task submitted successfully! Awaiting CR approval."
-        : "Task deadline added and published successfully!";
+    const taskId = result.insertId;
 
-    res.status(201).json({ success: true, message, taskId: result.insertId });
+    if (status === "approved") {
+      broadcastNotification({
+        excludeUserId: userId,
+        type: "task",
+        title: `📋 New Deadline: ${cleanTitle}`,
+        message: `Course: ${cleanCourse} | Due: ${new Date(due_date).toLocaleDateString()}`,
+        relatedEntityType: "task",
+        relatedEntityId: taskId,
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message:
+        status === "approved"
+          ? "Academic task saved successfully!"
+          : "Task submitted for Class Representative review.",
+      taskId,
+    });
   } catch (error) {
     console.error("Create Task Error:", error.message);
     res.status(500).json({ success: false, message: "Failed to create task." });
   }
 };
 
-// Get Pending Tasks (Guarded by requireRole("cr", "admin") in router)
+// CR / Admin: Fetch Pending Tasks for Approval
 export const getPendingTasks = async (req, res) => {
   try {
-    const [pendingTasks] = await db.execute(
-      `SELECT t.*, u.name as uploader_name 
-       FROM tasks t 
-       LEFT JOIN users u ON t.created_by = u.id 
+    const [tasks] = await db.execute(
+      `SELECT t.*, u.name as creator_name, u.name as uploader_name, u.student_id as creator_student_id
+       FROM tasks t
+       LEFT JOIN users u ON t.created_by = u.id
        WHERE t.status = 'pending'
-       ORDER BY t.due_date ASC`
+       ORDER BY t.created_at DESC`
     );
 
-    res.status(200).json({ success: true, pendingTasks });
+    res.status(200).json({ success: true, tasks, pendingTasks: tasks });
   } catch (error) {
     console.error("Get Pending Tasks Error:", error.message);
     res.status(500).json({ success: false, message: "Failed to retrieve pending tasks." });
@@ -95,7 +120,7 @@ export const approveTask = async (req, res) => {
   try {
     const { taskId } = req.params;
 
-    const [tasks] = await db.execute("SELECT id, status, title FROM tasks WHERE id = ?", [taskId]);
+    const [tasks] = await db.execute("SELECT id, status, title, created_by, course_code, due_date FROM tasks WHERE id = ?", [taskId]);
     if (tasks.length === 0) {
       return res.status(404).json({ success: false, message: "Task not found." });
     }
@@ -110,6 +135,28 @@ export const approveTask = async (req, res) => {
 
     await db.execute('UPDATE tasks SET status = "approved" WHERE id = ?', [taskId]);
 
+    // Cross-Module Notification: notify task creator
+    if (task.created_by) {
+      createNotification({
+        userId: task.created_by,
+        type: "task",
+        title: "📋 Task Approved",
+        message: `Your task "${task.title}" has been approved and published to the batch deadline list!`,
+        relatedEntityType: "task",
+        relatedEntityId: Number(taskId),
+      });
+    }
+
+    // Broadcast to students
+    broadcastNotification({
+      excludeUserId: task.created_by,
+      type: "task",
+      title: `📋 New Deadline: ${task.title}`,
+      message: `Course: ${task.course_code} | Due: ${new Date(task.due_date).toLocaleDateString()}`,
+      relatedEntityType: "task",
+      relatedEntityId: Number(taskId),
+    });
+
     res.status(200).json({ success: true, message: "Task approved and published to the batch!" });
   } catch (error) {
     console.error("Approve Task Error:", error.message);
@@ -122,7 +169,7 @@ export const rejectTask = async (req, res) => {
   try {
     const { taskId } = req.params;
 
-    const [tasks] = await db.execute("SELECT id, status, title FROM tasks WHERE id = ?", [taskId]);
+    const [tasks] = await db.execute("SELECT id, status, title, created_by FROM tasks WHERE id = ?", [taskId]);
     if (tasks.length === 0) {
       return res.status(404).json({ success: false, message: "Task not found." });
     }
@@ -137,6 +184,18 @@ export const rejectTask = async (req, res) => {
 
     // Preserve audit trail: set status to 'rejected' instead of destructive deletion
     await db.execute('UPDATE tasks SET status = "rejected" WHERE id = ?', [taskId]);
+
+    // Cross-Module Notification: notify task creator
+    if (task.created_by) {
+      createNotification({
+        userId: task.created_by,
+        type: "task",
+        title: "Task Submission Update",
+        message: `Your submitted task "${task.title}" was declined by the batch representative.`,
+        relatedEntityType: "task",
+        relatedEntityId: Number(taskId),
+      });
+    }
 
     res.status(200).json({ success: true, message: "Task request rejected and recorded." });
   } catch (error) {

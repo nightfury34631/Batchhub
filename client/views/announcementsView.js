@@ -1,12 +1,15 @@
 import { api } from "../assets/js/api.js";
-import { escapeHTML, formatDate, showToast } from "../assets/js/uiUtils.js";
+import { escapeHTML, formatDate, showToast, confirmDialog } from "../assets/js/uiUtils.js";
 
 export function AnnouncementsView(navigate = null) {
   const container = document.createElement("div");
   container.className = "view-container";
 
-  const user = JSON.parse(localStorage.getItem("user")) || { role: "student" };
-  const canCreate = user.role === "cr" || user.role === "admin" || true; // All students / contributors or CR/Admin can post notices per noticeController
+  const user = JSON.parse(localStorage.getItem("user")) || {
+    id: 0,
+    role: "student",
+  };
+  const isCRorAdmin = user.role === "cr" || user.role === "admin";
 
   container.innerHTML = `
     <!-- Page Header -->
@@ -47,7 +50,6 @@ export function AnnouncementsView(navigate = null) {
 
     <!-- Announcements Cards Grid -->
     <div id="noticesGrid" class="app-cards-grid">
-      <!-- Loading skeletons -->
       <div class="skeleton-card"></div>
       <div class="skeleton-card"></div>
       <div class="skeleton-card"></div>
@@ -57,7 +59,7 @@ export function AnnouncementsView(navigate = null) {
     <div id="createNoticeModal" class="app-modal-overlay">
       <div class="app-modal-dialog">
         <div class="app-modal-header">
-          <h3>Create New Announcement</h3>
+          <h3>Post New Announcement</h3>
           <button class="app-modal-close" id="closeNoticeModalBtn">✕</button>
         </div>
         <form id="createNoticeForm">
@@ -67,14 +69,25 @@ export function AnnouncementsView(navigate = null) {
               <input type="text" id="noticeTitleInput" class="form-input" required placeholder="e.g., Final-Year Project Proposal Guidelines">
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Category *</label>
-              <select id="noticeCategoryInput" class="form-select">
-                <option value="academic">Academic</option>
-                <option value="examination">Examination</option>
-                <option value="event">Event</option>
-                <option value="general" selected>General Announcement</option>
-              </select>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Category *</label>
+                <select id="noticeCategoryInput" class="form-select">
+                  <option value="academic">Academic</option>
+                  <option value="examination">Examination</option>
+                  <option value="event">Event</option>
+                  <option value="general" selected>General Announcement</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Priority</label>
+                <select id="noticePriorityInput" class="form-select">
+                  <option value="Normal" selected>Normal</option>
+                  <option value="Important">Important 🟡</option>
+                  <option value="Urgent">Urgent 🔴</option>
+                </select>
+              </div>
             </div>
 
             <div class="form-group">
@@ -86,12 +99,51 @@ export function AnnouncementsView(navigate = null) {
               <label class="form-label">Description / Announcement Body *</label>
               <textarea id="noticeDescInput" class="form-textarea" rows="4" required placeholder="Provide clear instructions, links, or submission details..."></textarea>
             </div>
+
+            ${
+              isCRorAdmin
+                ? `
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                  <input type="checkbox" id="noticePinInput" style="width: 16px; height: 16px; accent-color: var(--primary-mint); cursor: pointer;">
+                  <label for="noticePinInput" style="font-size: 13px; color: var(--text-primary); cursor: pointer;">Pin this announcement to the top</label>
+                </div>
+                `
+                : ""
+            }
           </div>
           <div class="app-modal-footer">
             <button type="button" class="btn-secondary" id="cancelNoticeModalBtn">Cancel</button>
-            <button type="submit" class="btn-primary" id="submitNoticeBtn">Publish Notice</button>
+            <button type="submit" class="btn-primary" id="submitNoticeBtn">Publish Announcement</button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Announcement Detail Modal -->
+    <div id="noticeDetailModal" class="app-modal-overlay">
+      <div class="app-modal-dialog" style="max-width: 620px;">
+        <div class="app-modal-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span id="detailCatBadge" class="app-badge badge-emerald">ACADEMIC</span>
+            <span id="detailPriorityBadge" class="app-badge badge-warning" style="display: none;">Important</span>
+            <span id="detailPinBadge" class="app-badge badge-warning" style="display: none;">📌 Pinned</span>
+          </div>
+          <button class="app-modal-close" id="closeNoticeDetailBtn">✕</button>
+        </div>
+        <div class="app-modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+          <h2 id="detailTitle" style="font-size: 18px; font-weight: 700; color: var(--text-primary); line-height: 1.3;"></h2>
+          
+          <div style="display: flex; gap: 16px; font-size: 12.5px; color: var(--text-muted); background: var(--card-inner); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--card-border); flex-wrap: wrap;">
+            <div><strong>Author:</strong> <span id="detailAuthor"></span></div>
+            <div><strong>Date:</strong> <span id="detailDate"></span></div>
+            <div><strong>Audience:</strong> <span id="detailAudience"></span></div>
+          </div>
+
+          <div id="detailDescription" style="font-size: 14px; line-height: 1.6; color: var(--text-secondary); white-space: pre-line; padding-top: 6px;"></div>
+        </div>
+        <div class="app-modal-footer">
+          <button type="button" class="btn-secondary" id="dismissDetailBtn">Close</button>
+        </div>
       </div>
     </div>
   `;
@@ -139,9 +191,10 @@ export function AnnouncementsView(navigate = null) {
       return;
     }
 
-    filtered.forEach((notice, index) => {
+    filtered.forEach((notice) => {
       const card = document.createElement("div");
       card.className = "app-card";
+      card.style.cursor = "pointer";
 
       const catBadgeClass =
         notice.category === "academic"
@@ -152,25 +205,51 @@ export function AnnouncementsView(navigate = null) {
           ? "badge-info"
           : "badge-muted";
 
-      const isFirst = index === 0;
+      const isPinned = Number(notice.is_pinned) === 1;
+      const canManage = isCRorAdmin || (user.id && notice.created_by === user.id);
+
+      const priorityBadge =
+        notice.priority === "Urgent"
+          ? '<span class="app-badge badge-danger">🔴 Urgent</span>'
+          : notice.priority === "Important"
+          ? '<span class="app-badge badge-warning">🟡 Important</span>'
+          : "";
 
       card.innerHTML = `
         <div class="app-card-header">
           <div style="display: flex; flex-direction: column; gap: 6px; flex-grow: 1;">
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
               <span class="app-badge ${catBadgeClass}">${escapeHTML(notice.category || "general").toUpperCase()}</span>
-              ${
-                isFirst
-                  ? '<span class="app-badge badge-warning">📌 Pinned</span>'
-                  : ""
-              }
+              ${isPinned ? '<span class="app-badge badge-warning">📌 Pinned</span>' : ""}
+              ${priorityBadge}
               <span class="app-badge badge-muted">Audience: ${escapeHTML(notice.target_audience || "all")}</span>
             </div>
             <h3 class="app-card-title">${escapeHTML(notice.title)}</h3>
           </div>
+          ${
+            canManage
+              ? `
+              <div style="display: flex; align-items: center; gap: 4px;" class="card-mgmt-actions">
+                ${
+                  isCRorAdmin
+                    ? `<button class="pin-notice-btn" title="${isPinned ? "Unpin Notice" : "Pin Notice"}" data-id="${notice.id}" style="background: none; border: none; color: ${isPinned ? "var(--warning-orange)" : "var(--text-dim)"}; cursor: pointer; padding: 4px; border-radius: 4px;">
+                        📌
+                       </button>`
+                    : ""
+                }
+                <button class="delete-notice-btn" title="Delete Notice" data-id="${notice.id}" style="background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 4px; border-radius: 4px;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
+              `
+              : ""
+          }
         </div>
 
-        <div class="app-card-body" style="white-space: pre-line;">
+        <div class="app-card-body" style="white-space: pre-line; max-height: 120px; overflow: hidden; position: relative;">
           ${escapeHTML(notice.description)}
         </div>
 
@@ -194,8 +273,81 @@ export function AnnouncementsView(navigate = null) {
         </div>
       `;
 
+      // Open detail view on card click
+      card.onclick = (e) => {
+        if (e.target.closest(".card-mgmt-actions")) return;
+        openDetailModal(notice);
+      };
+
+      // Pin / Unpin button
+      const pinBtn = card.querySelector(".pin-notice-btn");
+      if (pinBtn) {
+        pinBtn.onclick = async (e) => {
+          e.stopPropagation();
+          try {
+            const token = localStorage.getItem("token");
+            const res = await api.put(`/notices/${notice.id}/pin`, {}, token);
+            showToast(res.message || "Pin status updated.", "success");
+            fetchNotices();
+          } catch (err) {
+            showToast(err.message, "error");
+          }
+        };
+      }
+
+      // Delete Notice button
+      const delBtn = card.querySelector(".delete-notice-btn");
+      if (delBtn) {
+        delBtn.onclick = async (e) => {
+          e.stopPropagation();
+          const confirmed = await confirmDialog({
+            title: "Delete Announcement",
+            message: `Are you sure you want to delete "${notice.title}"?`,
+            confirmText: "Yes, Delete",
+            isDanger: true,
+          });
+          if (!confirmed) return;
+
+          try {
+            const token = localStorage.getItem("token");
+            const res = await api.delete(`/notices/${notice.id}`, token);
+            showToast(res.message || "Announcement deleted.", "info");
+            fetchNotices();
+          } catch (err) {
+            showToast(err.message, "error");
+          }
+        };
+      }
+
       grid.appendChild(card);
     });
+  }
+
+  function openDetailModal(notice) {
+    const modal = container.querySelector("#noticeDetailModal");
+    if (!modal) return;
+
+    container.querySelector("#detailTitle").textContent = notice.title;
+    container.querySelector("#detailDescription").textContent = notice.description;
+    container.querySelector("#detailAuthor").textContent = notice.author_name || "Batch Representative";
+    container.querySelector("#detailDate").textContent = formatDate(notice.created_at);
+    container.querySelector("#detailAudience").textContent = notice.target_audience || "all";
+
+    const catBadge = container.querySelector("#detailCatBadge");
+    catBadge.textContent = (notice.category || "general").toUpperCase();
+
+    const priorityBadge = container.querySelector("#detailPriorityBadge");
+    if (notice.priority && notice.priority !== "Normal") {
+      priorityBadge.style.display = "inline-block";
+      priorityBadge.textContent = notice.priority;
+    } else {
+      priorityBadge.style.display = "none";
+    }
+
+    const pinBadge = container.querySelector("#detailPinBadge");
+    pinBadge.style.display = Number(notice.is_pinned) === 1 ? "inline-block" : "none";
+
+    modal.classList.add("app-modal-open");
   }
 
   function renderEmpty(message) {
@@ -233,7 +385,6 @@ export function AnnouncementsView(navigate = null) {
     `;
   }
 
-  // Interactivity Handlers
   setTimeout(() => {
     fetchNotices();
 
@@ -265,12 +416,8 @@ export function AnnouncementsView(navigate = null) {
     const cancelBtn = container.querySelector("#cancelNoticeModalBtn");
     const form = container.querySelector("#createNoticeForm");
 
-    const openModal = () => {
-      if (modal) modal.classList.add("app-modal-open");
-    };
-    const closeModal = () => {
-      if (modal) modal.classList.remove("app-modal-open");
-    };
+    const openModal = () => modal && modal.classList.add("app-modal-open");
+    const closeModal = () => modal && modal.classList.remove("app-modal-open");
 
     if (openBtn) openBtn.onclick = openModal;
     if (closeBtn) closeBtn.onclick = closeModal;
@@ -278,6 +425,20 @@ export function AnnouncementsView(navigate = null) {
     if (modal) {
       modal.onclick = (e) => {
         if (e.target === modal) closeModal();
+      };
+    }
+
+    // Detail modal close
+    const detailModal = container.querySelector("#noticeDetailModal");
+    const closeDetailBtn = container.querySelector("#closeNoticeDetailBtn");
+    const dismissDetailBtn = container.querySelector("#dismissDetailBtn");
+    const closeDetail = () => detailModal && detailModal.classList.remove("app-modal-open");
+
+    if (closeDetailBtn) closeDetailBtn.onclick = closeDetail;
+    if (dismissDetailBtn) dismissDetailBtn.onclick = closeDetail;
+    if (detailModal) {
+      detailModal.onclick = (e) => {
+        if (e.target === detailModal) closeDetail();
       };
     }
 
@@ -292,7 +453,9 @@ export function AnnouncementsView(navigate = null) {
           title: container.querySelector("#noticeTitleInput").value.trim(),
           description: container.querySelector("#noticeDescInput").value.trim(),
           category: container.querySelector("#noticeCategoryInput").value,
+          priority: container.querySelector("#noticePriorityInput").value,
           target_audience: container.querySelector("#noticeAudienceInput").value.trim() || "all",
+          is_pinned: container.querySelector("#noticePinInput")?.checked ? 1 : 0,
         };
 
         try {
@@ -313,7 +476,7 @@ export function AnnouncementsView(navigate = null) {
         } finally {
           if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.textContent = "Publish Notice";
+            submitBtn.textContent = "Publish Announcement";
           }
         }
       };
@@ -322,4 +485,3 @@ export function AnnouncementsView(navigate = null) {
 
   return container;
 }
-

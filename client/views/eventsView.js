@@ -1,11 +1,12 @@
 import { api } from "../assets/js/api.js";
-import { escapeHTML, formatDate, formatTime, showToast } from "../assets/js/uiUtils.js";
+import { escapeHTML, formatDate, formatTime, showToast, confirmDialog } from "../assets/js/uiUtils.js";
 
 export function EventsView(navigate = null) {
   const container = document.createElement("div");
   container.className = "view-container";
 
   const user = JSON.parse(localStorage.getItem("user")) || {
+    id: 0,
     role: "student",
     department: "CSE",
   };
@@ -40,9 +41,16 @@ export function EventsView(navigate = null) {
       </div>
 
       <div class="filter-tabs" id="eventFilterTabs">
-        <button class="filter-tab active" data-filter="all">All Events</button>
-        <button class="filter-tab" data-filter="approved">Approved</button>
-        <button class="filter-tab" data-filter="pending">Pending</button>
+        <button class="filter-tab active" data-filter="upcoming">Upcoming Events</button>
+        <button class="filter-tab" data-filter="past">Past Events</button>
+        ${
+          isCRorAdmin
+            ? `<button class="filter-tab" data-filter="pending">
+                Pending Review
+                <span id="pendingEventsBadge" class="app-badge badge-warning" style="margin-left: 4px; padding: 1px 6px; font-size: 10px; display: none;">0</span>
+               </button>`
+            : ""
+        }
       </div>
     </div>
 
@@ -69,7 +77,7 @@ export function EventsView(navigate = null) {
 
             <div class="form-row">
               <div class="form-group">
-                <label class="form-label">Location / Room *</label>
+                <label class="form-label">Location / Venue *</label>
                 <input type="text" id="evLocation" class="form-input" required placeholder="e.g., Lab-3, CSE Building">
               </div>
               <div class="form-group">
@@ -97,18 +105,65 @@ export function EventsView(navigate = null) {
         </form>
       </div>
     </div>
+
+    <!-- Event Detail Modal -->
+    <div id="eventDetailModal" class="app-modal-overlay">
+      <div class="app-modal-dialog" style="max-width: 580px;">
+        <div class="app-modal-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span id="detailEventDeptBadge" class="app-badge badge-muted">CSE</span>
+            <span id="detailEventStatusBadge" class="app-badge badge-emerald">Approved</span>
+          </div>
+          <button class="app-modal-close" id="closeEventDetailBtn">✕</button>
+        </div>
+        <div class="app-modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+          <h2 id="detailEventTitle" style="font-size: 18px; font-weight: 700; color: var(--text-primary); line-height: 1.3;"></h2>
+          
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--text-secondary); background: var(--card-inner); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--card-border);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: var(--primary-mint);">📅</span>
+              <div><strong>Date & Time:</strong> <span id="detailEventDateTime"></span></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: var(--primary-mint);">📍</span>
+              <div><strong>Venue:</strong> <span id="detailEventLocation"></span></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: var(--primary-mint);">👤</span>
+              <div><strong>Organizer:</strong> <span id="detailEventOrganizer"></span></div>
+            </div>
+          </div>
+
+          <div id="detailEventDesc" style="font-size: 13.5px; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;"></div>
+        </div>
+        <div class="app-modal-footer">
+          <button type="button" class="btn-secondary" id="dismissEventDetailBtn">Close</button>
+        </div>
+      </div>
+    </div>
   `;
 
-  let allEvents = [];
-  let filterStatus = "all";
+  let upcomingEvents = [];
+  let pastEvents = [];
+  let pendingEvents = [];
+  let currentFilter = "upcoming";
   let searchQuery = "";
 
   async function fetchEvents() {
     try {
       const token = localStorage.getItem("token");
       const res = await api.get("/events", token);
-      if (res.success && res.events) {
-        allEvents = res.events;
+      if (res.success) {
+        upcomingEvents = res.events || [];
+        pastEvents = res.pastEvents || [];
+        pendingEvents = res.pendingEvents || [];
+
+        const badge = container.querySelector("#pendingEventsBadge");
+        if (badge && pendingEvents.length > 0) {
+          badge.style.display = "inline-block";
+          badge.textContent = pendingEvents.length;
+        }
+
         renderEvents();
       } else {
         renderEmpty("No events scheduled at this time.");
@@ -123,25 +178,33 @@ export function EventsView(navigate = null) {
     if (!grid) return;
     grid.innerHTML = "";
 
-    const filtered = allEvents.filter((ev) => {
-      const matchStatus =
-        filterStatus === "all" ||
-        (filterStatus === "approved" && ev.status === "approved") ||
-        (filterStatus === "pending" && ev.status === "pending");
+    let listToDisplay = [];
+    if (currentFilter === "upcoming") {
+      listToDisplay = upcomingEvents;
+    } else if (currentFilter === "past") {
+      listToDisplay = pastEvents;
+    } else if (currentFilter === "pending") {
+      listToDisplay = pendingEvents;
+    }
 
-      const matchSearch =
+    const filtered = listToDisplay.filter((ev) => {
+      return (
         searchQuery === "" ||
         (ev.title && ev.title.toLowerCase().includes(searchQuery)) ||
         (ev.location && ev.location.toLowerCase().includes(searchQuery)) ||
-        (ev.organizer_name && ev.organizer_name.toLowerCase().includes(searchQuery));
-
-      return matchStatus && matchSearch;
+        (ev.organizer_name && ev.organizer_name.toLowerCase().includes(searchQuery)) ||
+        (ev.description && ev.description.toLowerCase().includes(searchQuery))
+      );
     });
 
     if (filtered.length === 0) {
       renderEmpty(
-        searchQuery || filterStatus !== "all"
-          ? "No events match your current filter criteria."
+        searchQuery
+          ? "No events match your search query."
+          : currentFilter === "pending"
+          ? "No pending event submissions requiring review."
+          : currentFilter === "past"
+          ? "No past event records found."
           : "No upcoming campus events found."
       );
       return;
@@ -150,10 +213,13 @@ export function EventsView(navigate = null) {
     filtered.forEach((ev) => {
       const card = document.createElement("div");
       card.className = "app-card";
+      card.style.cursor = "pointer";
 
       const isPending = ev.status === "pending";
       const statusBadge = isPending
         ? '<span class="app-badge badge-warning">⏳ Pending Approval</span>'
+        : currentFilter === "past"
+        ? '<span class="app-badge badge-muted">Completed</span>'
         : '<span class="app-badge badge-emerald">✓ Approved</span>';
 
       let monthStr = "EVENT";
@@ -209,16 +275,86 @@ export function EventsView(navigate = null) {
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
-            <span>Organized by: ${escapeHTML(ev.organizer_name || "Faculty / CR")}</span>
+            <span>${escapeHTML(ev.organizer_name || "Faculty / CR")}</span>
           </div>
-          <div>
-            <span>${formatDate(ev.event_date)}</span>
-          </div>
+
+          ${
+            isPending && isCRorAdmin
+              ? `
+              <div style="display: flex; gap: 6px;" class="event-review-actions">
+                <button class="btn-primary btn-sm approve-event-btn" data-id="${ev.id}">Approve</button>
+                <button class="btn-danger btn-sm reject-event-btn" data-id="${ev.id}">Decline</button>
+              </div>
+              `
+              : `<div><span>${formatDate(ev.event_date)}</span></div>`
+          }
         </div>
       `;
 
+      card.onclick = (e) => {
+        if (e.target.closest(".event-review-actions")) return;
+        openDetailModal(ev);
+      };
+
+      // Review actions
+      const appBtn = card.querySelector(".approve-event-btn");
+      if (appBtn) {
+        appBtn.onclick = async (e) => {
+          e.stopPropagation();
+          try {
+            const token = localStorage.getItem("token");
+            const res = await api.put(`/events/${ev.id}/approve`, {}, token);
+            showToast(res.message || "Event approved!", "success");
+            fetchEvents();
+          } catch (err) {
+            showToast(err.message, "error");
+          }
+        };
+      }
+
+      const rejBtn = card.querySelector(".reject-event-btn");
+      if (rejBtn) {
+        rejBtn.onclick = async (e) => {
+          e.stopPropagation();
+          const confirmed = await confirmDialog({
+            title: "Decline Event Suggestion",
+            message: `Decline and record "${ev.title}"?`,
+            confirmText: "Yes, Decline",
+            isDanger: true,
+          });
+          if (!confirmed) return;
+
+          try {
+            const token = localStorage.getItem("token");
+            const res = await api.delete(`/events/${ev.id}/reject`, token);
+            showToast(res.message || "Event declined.", "info");
+            fetchEvents();
+          } catch (err) {
+            showToast(err.message, "error");
+          }
+        };
+      }
+
       grid.appendChild(card);
     });
+  }
+
+  function openDetailModal(ev) {
+    const modal = container.querySelector("#eventDetailModal");
+    if (!modal) return;
+
+    container.querySelector("#detailEventTitle").textContent = ev.title;
+    container.querySelector("#detailEventDateTime").textContent = `${formatDate(ev.event_date)} at ${formatTime(ev.event_date)}`;
+    container.querySelector("#detailEventLocation").textContent = ev.location || "Campus";
+    container.querySelector("#detailEventOrganizer").textContent = ev.organizer_name || "Faculty / Batch Representative";
+    container.querySelector("#detailEventDesc").textContent = ev.description || "No specific instructions or guidelines provided.";
+    container.querySelector("#detailEventDeptBadge").textContent = ev.department || "CSE";
+
+    const statusBadge = container.querySelector("#detailEventStatusBadge");
+    statusBadge.textContent = ev.status === "pending" ? "Pending Approval" : "Approved";
+    statusBadge.className = ev.status === "pending" ? "app-badge badge-warning" : "app-badge badge-emerald";
+
+    modal.classList.add("app-modal-open");
   }
 
   function renderEmpty(message) {
@@ -258,18 +394,17 @@ export function EventsView(navigate = null) {
     `;
   }
 
-  // Interactivity Handlers
   setTimeout(() => {
     fetchEvents();
 
-    // Status Filter Tabs
+    // Filter Tabs
     container.querySelectorAll("#eventFilterTabs .filter-tab").forEach((tab) => {
       tab.onclick = () => {
         container
           .querySelectorAll("#eventFilterTabs .filter-tab")
           .forEach((t) => t.classList.remove("active"));
         tab.classList.add("active");
-        filterStatus = tab.getAttribute("data-filter");
+        currentFilter = tab.getAttribute("data-filter");
         renderEvents();
       };
     });
@@ -302,6 +437,21 @@ export function EventsView(navigate = null) {
       };
     }
 
+    // Detail modal close
+    const detailModal = container.querySelector("#eventDetailModal");
+    const closeDetailBtn = container.querySelector("#closeEventDetailBtn");
+    const dismissDetailBtn = container.querySelector("#dismissEventDetailBtn");
+    const closeDetail = () => detailModal && detailModal.classList.remove("app-modal-open");
+
+    if (closeDetailBtn) closeDetailBtn.onclick = closeDetail;
+    if (dismissDetailBtn) dismissDetailBtn.onclick = closeDetail;
+    if (detailModal) {
+      detailModal.onclick = (e) => {
+        if (e.target === detailModal) closeDetail();
+      };
+    }
+
+    // Submit handler
     if (form) {
       form.onsubmit = async (e) => {
         e.preventDefault();
@@ -311,7 +461,7 @@ export function EventsView(navigate = null) {
         const payload = {
           title: container.querySelector("#evTitle").value.trim(),
           location: container.querySelector("#evLocation").value.trim(),
-          department: container.querySelector("#evDept").value.trim() || "CSE",
+          department: container.querySelector("#evDept").value.trim() || user.department || "CSE",
           event_date: container.querySelector("#evDate").value,
           description: container.querySelector("#evDesc").value.trim(),
         };
@@ -319,7 +469,7 @@ export function EventsView(navigate = null) {
         try {
           if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.textContent = "Submitting...";
+            submitBtn.textContent = "Saving...";
           }
 
           const res = await api.post("/events", payload, token);

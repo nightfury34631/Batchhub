@@ -77,3 +77,4 @@ SET @sql_task := IF(@exist_task_idx = 0,
 PREPARE stmt_task FROM @sql_task;
 EXECUTE stmt_task;
 DEALLOCATE PREPARE stmt_task;
+

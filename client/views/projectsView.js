@@ -7,8 +7,10 @@ export function ProjectsView(navigate = null) {
 
   const user = JSON.parse(localStorage.getItem("user")) || {
     id: 1,
+    role: "student",
     department: "CSE",
   };
+  const isStaff = user.role === "cr" || user.role === "admin";
 
   container.innerHTML = `
     <!-- Header -->
@@ -103,6 +105,41 @@ export function ProjectsView(navigate = null) {
             <button type="submit" class="btn-primary" id="btnSubmitProject">Publish Project</button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Project Detail & Roster Modal -->
+    <div id="projectDetailModal" class="app-modal-overlay">
+      <div class="app-modal-dialog" style="max-width: 600px;">
+        <div class="app-modal-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span id="pDetailDeptBadge" class="app-badge badge-muted">CSE</span>
+            <span id="pDetailRoleBadge" class="app-badge badge-emerald" style="display: none;">Owner</span>
+          </div>
+          <button class="app-modal-close" id="closeProjectDetailBtn">✕</button>
+        </div>
+        <div class="app-modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+          <h2 id="pDetailTitle" style="font-size: 18px; font-weight: 700; color: var(--text-primary); line-height: 1.3;"></h2>
+          
+          <div id="pDetailTechStack" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+
+          <div style="font-size: 13.5px; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;" id="pDetailDesc"></div>
+
+          <div style="background: var(--card-inner); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--card-border);">
+            <div style="font-size: 12.5px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px;">
+              👥 Team Roster (Relational Members)
+            </div>
+            <div id="pDetailMembersList" style="display: flex; flex-direction: column; gap: 8px;">
+              <p style="color: var(--text-dim); font-size: 12px;">Loading members...</p>
+            </div>
+          </div>
+        </div>
+        <div class="app-modal-footer">
+          <a href="#" id="pDetailRepoLink" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-sm" style="text-decoration: none;">
+            <span>GitHub / Repository ↗</span>
+          </a>
+          <button type="button" class="btn-primary btn-sm" id="dismissProjectDetailBtn">Close</button>
+        </div>
       </div>
     </div>
   `;
@@ -214,8 +251,10 @@ export function ProjectsView(navigate = null) {
     filtered.forEach((p) => {
       const card = document.createElement("div");
       card.className = "app-card";
+      card.style.cursor = "pointer";
 
       const isOwner = Number(p.created_by) === Number(user.id);
+      const canDelete = isOwner || isStaff;
       const myReq = myRequests.find((r) => Number(r.project_id) === Number(p.id));
 
       // Tech stack badges
@@ -248,9 +287,24 @@ export function ProjectsView(navigate = null) {
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
               <span class="app-badge badge-muted">${escapeHTML(p.department || "CSE")}</span>
               ${isOwner ? '<span class="app-badge badge-info">Your Project</span>' : ""}
+              <span class="app-badge badge-muted">${p.member_count || 1} Member(s)</span>
             </div>
             <h3 class="app-card-title">${escapeHTML(p.title)}</h3>
           </div>
+          ${
+            canDelete
+              ? `
+              <div class="project-delete-wrap">
+                <button class="delete-project-btn" title="Delete Project" data-id="${p.id}" style="background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 4px; border-radius: 4px;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
+              `
+              : ""
+          }
         </div>
 
         <div class="app-card-body">
@@ -268,7 +322,7 @@ export function ProjectsView(navigate = null) {
         </div>
 
         <div class="app-card-footer" style="padding-top: 14px; gap: 10px;">
-          <a href="${escapeHTML(p.repo_url)}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-sm" style="flex-grow: 1; justify-content: center; text-decoration: none;">
+          <a href="${escapeHTML(p.repo_url)}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-sm" style="flex-grow: 1; justify-content: center; text-decoration: none;" onclick="event.stopPropagation();">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
             </svg>
@@ -279,9 +333,16 @@ export function ProjectsView(navigate = null) {
         </div>
       `;
 
+      card.onclick = (e) => {
+        if (e.target.closest(".join-project-btn") || e.target.closest(".project-delete-wrap") || e.target.closest("a")) return;
+        openProjectDetailModal(p);
+      };
+
+      // Join button
       const joinBtn = card.querySelector(".join-project-btn");
       if (joinBtn) {
-        joinBtn.onclick = async () => {
+        joinBtn.onclick = async (e) => {
+          e.stopPropagation();
           try {
             const token = localStorage.getItem("token");
             joinBtn.disabled = true;
@@ -297,8 +358,91 @@ export function ProjectsView(navigate = null) {
         };
       }
 
+      // Delete button
+      const delBtn = card.querySelector(".delete-project-btn");
+      if (delBtn) {
+        delBtn.onclick = async (e) => {
+          e.stopPropagation();
+          const confirmed = await confirmDialog({
+            title: "Delete Project",
+            message: `Are you sure you want to delete "${p.title}"?`,
+            confirmText: "Yes, Delete",
+            isDanger: true,
+          });
+          if (!confirmed) return;
+
+          try {
+            const token = localStorage.getItem("token");
+            const res = await api.delete(`/projects/${p.id}`, token);
+            showToast(res.message || "Project deleted.", "info");
+            fetchProjectsData();
+          } catch (err) {
+            showToast(err.message, "error");
+          }
+        };
+      }
+
       grid.appendChild(card);
     });
+  }
+
+  async function openProjectDetailModal(p) {
+    const modal = container.querySelector("#projectDetailModal");
+    if (!modal) return;
+
+    container.querySelector("#pDetailTitle").textContent = p.title;
+    container.querySelector("#pDetailDesc").textContent = p.description || "No project description provided.";
+    container.querySelector("#pDetailDeptBadge").textContent = p.department || "CSE";
+
+    const repoLink = container.querySelector("#pDetailRepoLink");
+    if (repoLink) repoLink.href = p.repo_url || "#";
+
+    const techBox = container.querySelector("#pDetailTechStack");
+    if (techBox) {
+      techBox.innerHTML = p.tech_stack
+        ? p.tech_stack
+            .split(",")
+            .map((t) => `<span class="app-badge badge-emerald" style="font-size: 11px;">${escapeHTML(t.trim())}</span>`)
+            .join(" ")
+        : "";
+    }
+
+    const membersBox = container.querySelector("#pDetailMembersList");
+    modal.classList.add("app-modal-open");
+
+    // Fetch relational members
+    try {
+      const token = localStorage.getItem("token");
+      const res = await api.get(`/projects/${p.id}`, token);
+      if (res.success && res.members) {
+        if (res.members.length === 0) {
+          membersBox.innerHTML = '<p style="color: var(--text-dim); font-size: 12px;">Solo project</p>';
+        } else {
+          membersBox.innerHTML = res.members
+            .map((m) => {
+              const defaultAvatar = "https://api.dicebear.com/7.x/bottts/svg?seed=" + encodeURIComponent(m.name);
+              const avatar = m.profile_picture || defaultAvatar;
+              const isOwner = m.role_in_project === "Owner";
+
+              return `
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <img src="${avatar}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;">
+                    <div>
+                      <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${escapeHTML(m.name)}</span>
+                      <span style="font-size: 11px; color: var(--text-muted); margin-left: 6px;">${escapeHTML(m.student_id || "")}</span>
+                    </div>
+                  </div>
+                  <span class="app-badge ${isOwner ? "badge-info" : "badge-emerald"}" style="font-size: 10.5px;">${escapeHTML(m.role_in_project)}</span>
+                </div>
+              `;
+            })
+            .join("");
+        }
+      }
+    } catch (e) {
+      membersBox.innerHTML = `<p style="color: var(--text-dim); font-size: 12px;">${escapeHTML(p.team_members || "Solo")}</p>`;
+    }
   }
 
   function renderEmpty(message) {
@@ -365,6 +509,20 @@ export function ProjectsView(navigate = null) {
     if (modal) {
       modal.onclick = (e) => {
         if (e.target === modal) closeModal();
+      };
+    }
+
+    // Detail modal close
+    const detailModal = container.querySelector("#projectDetailModal");
+    const closeDetailBtn = container.querySelector("#closeProjectDetailBtn");
+    const dismissDetailBtn = container.querySelector("#dismissProjectDetailBtn");
+    const closeDetail = () => detailModal && detailModal.classList.remove("app-modal-open");
+
+    if (closeDetailBtn) closeDetailBtn.onclick = closeDetail;
+    if (dismissDetailBtn) dismissDetailBtn.onclick = closeDetail;
+    if (detailModal) {
+      detailModal.onclick = (e) => {
+        if (e.target === detailModal) closeDetail();
       };
     }
 

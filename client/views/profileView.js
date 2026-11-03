@@ -14,12 +14,16 @@ export function ProfileView(navigate = null) {
     <div class="view-header">
       <div class="view-title-group">
         <h2>Account Settings & Profile</h2>
-        <p>Manage your academic profile credentials, personal details, and technical competencies.</p>
+        <p>Manage your academic profile credentials, personal details, and security passwords.</p>
       </div>
     </div>
 
     <!-- Main Profile Card -->
     <div class="app-card" style="padding: 30px;">
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 20px;">
+        👤 Personal & Academic Profile
+      </h3>
+
       <form id="profileForm" style="display: flex; flex-direction: column; gap: 20px;">
         <!-- Avatar Section -->
         <div style="display: flex; align-items: center; gap: 24px; padding-bottom: 22px; border-bottom: 1px solid var(--card-border); flex-wrap: wrap;">
@@ -89,6 +93,41 @@ export function ProfileView(navigate = null) {
         </div>
       </form>
     </div>
+
+    <!-- Security & Password Change Card -->
+    <div class="app-card" style="padding: 30px; margin-top: 20px;">
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 20px;">
+        🔒 Security & Password Update
+      </h3>
+
+      <form id="changePasswordForm" style="display: flex; flex-direction: column; gap: 16px;">
+        <div class="form-group">
+          <label class="form-label">Current Password *</label>
+          <input type="password" id="currPasswordInput" class="form-input" required placeholder="••••••••" autocomplete="current-password">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">New Password * (Min 6 characters)</label>
+            <input type="password" id="newPasswordInput" class="form-input" required minlength="6" placeholder="••••••••" autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm New Password *</label>
+            <input type="password" id="confirmPasswordInput" class="form-input" required minlength="6" placeholder="••••••••" autocomplete="new-password">
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--card-border);">
+          <button type="submit" class="btn-primary" id="btnChangePassword">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Update Password</span>
+          </button>
+        </div>
+      </form>
+    </div>
   `;
 
   async function loadProfile() {
@@ -141,7 +180,7 @@ export function ProfileView(navigate = null) {
       });
     }
 
-    // Submit form
+    // Submit Profile form
     const form = container.querySelector("#profileForm");
     if (form) {
       form.onsubmit = async (e) => {
@@ -167,10 +206,19 @@ export function ProfileView(navigate = null) {
 
           const res = await api.put("/users/profile", payload, token);
           if (res.success) {
-            showToast("Profile credentials updated successfully!", "success");
+            showToast("Profile updated successfully!", "success");
             // Update localStorage user object
             if (res.user) {
               localStorage.setItem("user", JSON.stringify(res.user));
+              // Sync Topbar instantly without re-login
+              const topbarAvatar = document.querySelector("#topbarUserAvatar");
+              const topbarName = document.querySelector("#topbarUserName");
+              if (topbarAvatar && res.user.profile_picture) {
+                topbarAvatar.src = res.user.profile_picture;
+              }
+              if (topbarName && res.user.name) {
+                topbarName.textContent = res.user.name;
+              }
             }
           }
         } catch (err) {
@@ -185,6 +233,58 @@ export function ProfileView(navigate = null) {
                 <polyline points="7 3 7 8 15 8"></polyline>
               </svg>
               <span>Save Profile Changes</span>
+            `;
+          }
+        }
+      };
+    }
+
+    // Submit Password change form
+    const pwdForm = container.querySelector("#changePasswordForm");
+    if (pwdForm) {
+      pwdForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const currPassword = container.querySelector("#currPasswordInput").value;
+        const newPassword = container.querySelector("#newPasswordInput").value;
+        const confirmPassword = container.querySelector("#confirmPasswordInput").value;
+        const pwdBtn = container.querySelector("#btnChangePassword");
+
+        if (newPassword !== confirmPassword) {
+          showToast("New passwords do not match. Please re-enter.", "error");
+          return;
+        }
+
+        if (newPassword.length < 6) {
+          showToast("New password must be at least 6 characters.", "error");
+          return;
+        }
+
+        try {
+          if (pwdBtn) {
+            pwdBtn.disabled = true;
+            pwdBtn.textContent = "Updating Password...";
+          }
+
+          const token = localStorage.getItem("token");
+          const res = await api.put(
+            "/users/change-password",
+            { currentPassword: currPassword, newPassword },
+            token
+          );
+
+          showToast(res.message || "Password updated successfully!", "success");
+          pwdForm.reset();
+        } catch (err) {
+          showToast(err.message, "error");
+        } finally {
+          if (pwdBtn) {
+            pwdBtn.disabled = false;
+            pwdBtn.innerHTML = `
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span>Update Password</span>
             `;
           }
         }

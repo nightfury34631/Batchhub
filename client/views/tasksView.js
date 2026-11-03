@@ -40,11 +40,12 @@ export function TasksView(navigate = null) {
         <input type="text" id="taskSearchInput" placeholder="Search tasks by title, course, or description...">
       </div>
 
-      <div class="filter-tabs" id="taskPriorityTabs">
-        <button class="filter-tab active" data-priority="all">All Priorities</button>
-        <button class="filter-tab" data-priority="High">High 🔴</button>
-        <button class="filter-tab" data-priority="Medium">Medium 🟡</button>
-        <button class="filter-tab" data-priority="Low">Low 🟢</button>
+      <div class="filter-tabs" id="taskFilterTabs">
+        <button class="filter-tab active" data-filter="all">All Deadlines</button>
+        <button class="filter-tab" data-filter="active">Active</button>
+        <button class="filter-tab" data-filter="completed">Completed</button>
+        <button class="filter-tab" data-filter="overdue">Overdue</button>
+        <button class="filter-tab" data-filter="high">High Priority 🔴</button>
       </div>
     </div>
 
@@ -101,10 +102,43 @@ export function TasksView(navigate = null) {
         </form>
       </div>
     </div>
+
+    <!-- Task Detail Modal -->
+    <div id="taskDetailModal" class="app-modal-overlay">
+      <div class="app-modal-dialog" style="max-width: 560px;">
+        <div class="app-modal-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span id="detailTaskCourseBadge" class="app-badge badge-muted">CSE-3201</span>
+            <span id="detailTaskPriorityBadge" class="app-badge badge-warning">Medium</span>
+            <span id="detailTaskStatusBadge" class="app-badge badge-emerald">Active</span>
+          </div>
+          <button class="app-modal-close" id="closeTaskDetailBtn">✕</button>
+        </div>
+        <div class="app-modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+          <h2 id="detailTaskTitle" style="font-size: 18px; font-weight: 700; color: var(--text-primary); line-height: 1.3;"></h2>
+          
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--text-secondary); background: var(--card-inner); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--card-border);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: var(--primary-mint);">⏰</span>
+              <div><strong>Submission Due:</strong> <span id="detailTaskDue"></span></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: var(--primary-mint);">👤</span>
+              <div><strong>Published By:</strong> <span id="detailTaskCreator"></span></div>
+            </div>
+          </div>
+
+          <div id="detailTaskInstructions" style="font-size: 13.5px; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;"></div>
+        </div>
+        <div class="app-modal-footer">
+          <button type="button" class="btn-primary btn-sm" id="dismissTaskDetailBtn">Close</button>
+        </div>
+      </div>
+    </div>
   `;
 
   let allTasks = [];
-  let priorityFilter = "all";
+  let currentFilter = "all";
   let searchQuery = "";
 
   async function fetchTasks() {
@@ -122,24 +156,53 @@ export function TasksView(navigate = null) {
     }
   }
 
+  function getDeadlineStatus(dueDateStr, isCompleted) {
+    if (isCompleted) {
+      return { label: "✓ Completed", className: "badge-emerald" };
+    }
+    const dueTime = new Date(dueDateStr).getTime();
+    const now = Date.now();
+    const diffHours = (dueTime - now) / (1000 * 3600);
+
+    if (diffHours < 0) {
+      return { label: "⚠️ Overdue", className: "badge-danger" };
+    } else if (diffHours <= 24) {
+      return { label: "⏰ Due Today", className: "badge-warning" };
+    } else if (diffHours <= 72) {
+      return { label: "⏳ Due Soon", className: "badge-warning" };
+    }
+    return { label: "Active", className: "badge-muted" };
+  }
+
   function renderTasks() {
     const grid = container.querySelector("#tasksGrid");
     if (!grid) return;
     grid.innerHTML = "";
 
+    const now = Date.now();
+
     const filtered = allTasks.filter((t) => {
-      const matchPriority = priorityFilter === "all" || t.priority === priorityFilter;
+      const isCompleted = Number(t.is_completed) === 1;
+      const isOverdue = !isCompleted && new Date(t.due_date).getTime() < now;
+
+      let matchFilter = true;
+      if (currentFilter === "active") matchFilter = !isCompleted;
+      else if (currentFilter === "completed") matchFilter = isCompleted;
+      else if (currentFilter === "overdue") matchFilter = isOverdue;
+      else if (currentFilter === "high") matchFilter = t.priority === "High";
+
       const matchSearch =
         searchQuery === "" ||
         (t.title && t.title.toLowerCase().includes(searchQuery)) ||
         (t.course_code && t.course_code.toLowerCase().includes(searchQuery)) ||
         (t.description && t.description.toLowerCase().includes(searchQuery));
-      return matchPriority && matchSearch;
+
+      return matchFilter && matchSearch;
     });
 
     if (filtered.length === 0) {
       renderEmpty(
-        searchQuery || priorityFilter !== "all"
+        searchQuery || currentFilter !== "all"
           ? "No tasks match your selected filter."
           : "All caught up! No active tasks or pending assignment deadlines."
       );
@@ -149,9 +212,11 @@ export function TasksView(navigate = null) {
     filtered.forEach((task) => {
       const card = document.createElement("div");
       card.className = "app-card";
+      card.style.cursor = "pointer";
 
       const isCompleted = Number(task.is_completed) === 1;
       const canDelete = isCRorAdmin || (user.id && task.created_by === user.id);
+      const deadline = getDeadlineStatus(task.due_date, isCompleted);
 
       const priorityBadge =
         task.priority === "High"
@@ -165,7 +230,7 @@ export function TasksView(navigate = null) {
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <span class="app-badge badge-muted">${escapeHTML(task.course_code || "General")}</span>
             <span class="app-badge ${priorityBadge}">${escapeHTML(task.priority)} Priority</span>
-            ${isCompleted ? '<span class="app-badge badge-emerald">✓ Completed</span>' : ""}
+            <span class="app-badge ${deadline.className}">${escapeHTML(deadline.label)}</span>
           </div>
           ${
             canDelete
@@ -179,7 +244,7 @@ export function TasksView(navigate = null) {
           }
         </div>
 
-        <h3 class="app-card-title" style="${isCompleted ? 'text-decoration: line-through; opacity: 0.75;' : ''}">${escapeHTML(task.title)}</h3>
+        <h3 class="app-card-title" style="${isCompleted ? "text-decoration: line-through; opacity: 0.75;" : ""}">${escapeHTML(task.title)}</h3>
 
         <div class="app-card-body">
           <p>${escapeHTML(task.description || "No specific instructions provided.")}</p>
@@ -194,7 +259,7 @@ export function TasksView(navigate = null) {
 
         <div class="app-card-footer">
           <span style="font-size: 12px; color: var(--text-dim);">By: ${escapeHTML(task.creator_name || "Faculty / CR")}</span>
-          <button class="btn-secondary btn-sm toggle-complete-btn" data-id="${task.id}" style="${isCompleted ? 'color: var(--text-dim); border-color: var(--card-border);' : 'color: var(--primary-mint); border-color: var(--primary-mint-border);'}">
+          <button class="btn-secondary btn-sm toggle-complete-btn" data-id="${task.id}" style="${isCompleted ? "color: var(--text-dim); border-color: var(--card-border);" : "color: var(--primary-mint); border-color: var(--primary-mint-border);"}">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
@@ -203,10 +268,16 @@ export function TasksView(navigate = null) {
         </div>
       `;
 
-      // Toggle Complete (Personal completion tracking)
+      card.onclick = (e) => {
+        if (e.target.closest(".toggle-complete-btn") || e.target.closest(".delete-task-btn")) return;
+        openTaskDetailModal(task, deadline);
+      };
+
+      // Toggle Complete
       const compBtn = card.querySelector(".toggle-complete-btn");
       if (compBtn) {
-        compBtn.onclick = async () => {
+        compBtn.onclick = async (e) => {
+          e.stopPropagation();
           try {
             const token = localStorage.getItem("token");
             if (isCompleted) {
@@ -223,10 +294,11 @@ export function TasksView(navigate = null) {
         };
       }
 
-      // Delete Task (Authorized creators & CR/Admins)
+      // Delete Task
       const delBtn = card.querySelector(".delete-task-btn");
       if (delBtn) {
-        delBtn.onclick = async () => {
+        delBtn.onclick = async (e) => {
+          e.stopPropagation();
           const confirmed = await confirmDialog({
             title: "Delete Shared Task",
             message: `Are you sure you want to permanently delete "${task.title}" for all students?`,
@@ -248,6 +320,22 @@ export function TasksView(navigate = null) {
 
       grid.appendChild(card);
     });
+  }
+
+  function openTaskDetailModal(task, deadline) {
+    const modal = container.querySelector("#taskDetailModal");
+    if (!modal) return;
+
+    container.querySelector("#detailTaskTitle").textContent = task.title;
+    container.querySelector("#detailTaskCourseBadge").textContent = task.course_code || "General";
+    container.querySelector("#detailTaskPriorityBadge").textContent = `${task.priority} Priority`;
+    container.querySelector("#detailTaskStatusBadge").textContent = deadline.label;
+    container.querySelector("#detailTaskStatusBadge").className = `app-badge ${deadline.className}`;
+    container.querySelector("#detailTaskDue").textContent = `${formatDate(task.due_date)} at ${formatTime(task.due_date)}`;
+    container.querySelector("#detailTaskCreator").textContent = task.creator_name || "Faculty / Batch Representative";
+    container.querySelector("#detailTaskInstructions").textContent = task.description || "No specific problem set or guidelines provided.";
+
+    modal.classList.add("app-modal-open");
   }
 
   function renderEmpty(message) {
@@ -288,14 +376,14 @@ export function TasksView(navigate = null) {
   setTimeout(() => {
     fetchTasks();
 
-    // Priority Tabs
-    container.querySelectorAll("#taskPriorityTabs .filter-tab").forEach((tab) => {
+    // Filter Tabs
+    container.querySelectorAll("#taskFilterTabs .filter-tab").forEach((tab) => {
       tab.onclick = () => {
         container
-          .querySelectorAll("#taskPriorityTabs .filter-tab")
+          .querySelectorAll("#taskFilterTabs .filter-tab")
           .forEach((t) => t.classList.remove("active"));
         tab.classList.add("active");
-        priorityFilter = tab.getAttribute("data-priority");
+        currentFilter = tab.getAttribute("data-filter");
         renderTasks();
       };
     });
@@ -325,6 +413,20 @@ export function TasksView(navigate = null) {
     if (modal) {
       modal.onclick = (e) => {
         if (e.target === modal) closeModal();
+      };
+    }
+
+    // Detail modal close
+    const detailModal = container.querySelector("#taskDetailModal");
+    const closeDetailBtn = container.querySelector("#closeTaskDetailBtn");
+    const dismissDetailBtn = container.querySelector("#dismissTaskDetailBtn");
+    const closeDetail = () => detailModal && detailModal.classList.remove("app-modal-open");
+
+    if (closeDetailBtn) closeDetailBtn.onclick = closeDetail;
+    if (dismissDetailBtn) dismissDetailBtn.onclick = closeDetail;
+    if (detailModal) {
+      detailModal.onclick = (e) => {
+        if (e.target === detailModal) closeDetail();
       };
     }
 

@@ -70,8 +70,9 @@ async function runTests() {
     });
     assert.strictEqual(res.status, 201, `Expected status 201, got ${res.status}`);
     assert.strictEqual(res.data.success, true);
+    adminUserId = res.data.userId || (res.data.user && res.data.user.id);
+    assert.ok(adminUserId, "Registered user must have a valid ID");
     assert.strictEqual(res.data.user.role, "student", "Role must be sanitized and forced to 'student'");
-    adminUserId = res.data.user.id;
   });
 
   await test("Public registration with role='cr' is forced to role='student'", async () => {
@@ -88,8 +89,9 @@ async function runTests() {
       },
     });
     assert.strictEqual(res.status, 201);
+    crUserId = res.data.userId || (res.data.user && res.data.user.id);
+    assert.ok(crUserId, "Registered CR user must have a valid ID");
     assert.strictEqual(res.data.user.role, "student", "Role must be sanitized to 'student'");
-    crUserId = res.data.user.id;
   });
 
   await test("Normal public student registration succeeds", async () => {
@@ -105,8 +107,9 @@ async function runTests() {
       },
     });
     assert.strictEqual(res.status, 201);
+    studentUserId = res.data.userId || (res.data.user && res.data.user.id);
+    assert.ok(studentUserId, "Registered student user must have a valid ID");
     assert.strictEqual(res.data.user.role, "student");
-    studentUserId = res.data.user.id;
   });
 
   await test("Duplicate email registration is rejected with 409 Conflict", async () => {
@@ -177,13 +180,12 @@ async function runTests() {
     assert.strictEqual(res.status, 401);
   });
 
-  // Bootstrap CR and Admin roles for subsequent permission testing via authorized admin update
-  // For testing purposes, promote crUser and adminUser via direct DB connection
+  // Promote test accounts for authorized testing
   const { default: db } = await import("../src/config/db.js");
   await db.execute("UPDATE users SET role = 'admin' WHERE id = ?", [adminUserId]);
   await db.execute("UPDATE users SET role = 'cr' WHERE id = ?", [crUserId]);
 
-  // Re-login to get updated JWT tokens reflecting roles
+  // Re-login to generate role-bearing JWTs
   const adminLogin = await request("/auth/login", {
     method: "POST",
     body: { email: testAdminEmail, password: "Password123!" },
@@ -212,7 +214,7 @@ async function runTests() {
     const res = await request(`/users/${studentUserId}/role`, {
       method: "PUT",
       token: adminToken,
-      body: { role: "student" }, // Reassert student role cleanly
+      body: { role: "student" },
     });
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.data.success, true);
@@ -299,9 +301,8 @@ async function runTests() {
   });
 
   await test("Unrelated student cannot delete task created by someone else (403 Forbidden)", async () => {
-    // Create a 2nd student to test unauthorized deletion
     const otherEmail = `other_student_${timestamp}@test.edu`;
-    const regRes = await request("/auth/register", {
+    await request("/auth/register", {
       method: "POST",
       body: {
         name: "Other Student",
@@ -359,7 +360,7 @@ async function runTests() {
       [createdProjectId, studentUserId]
     );
     assert.strictEqual(members.length, 1);
-    assert.strictEqual(members[0].role, "Owner");
+    assert.strictEqual(members[0].role_in_project, "Owner");
   });
 
   await test("Project owner cannot request to join their own project", async () => {
@@ -389,12 +390,11 @@ async function runTests() {
   });
 
   await test("Non-owner cannot approve a project join request (403 Forbidden)", async () => {
-    // Find the request ID
     const [requests] = await db.execute(
       "SELECT id FROM project_requests WHERE project_id = ? AND user_id = ?",
       [createdProjectId, crUserId]
     );
-    assert.ok(requests.length > 0);
+    assert.ok(requests.length > 0, "Join request must exist in database");
     requestId = requests[0].id;
 
     const res = await request(`/projects/requests/${requestId}/approve`, {
@@ -417,7 +417,7 @@ async function runTests() {
       [createdProjectId, crUserId]
     );
     assert.strictEqual(members.length, 1);
-    assert.strictEqual(members[0].role, "Member");
+    assert.strictEqual(members[0].role_in_project, "Member");
   });
 
   // 6. EVENT VISIBILITY & SEPARATION

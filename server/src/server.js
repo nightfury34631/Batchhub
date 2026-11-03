@@ -10,6 +10,8 @@ import resourceRoutes from "./routes/resourceRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
 import noticeRoutes from "./routes/noticeRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import searchRoutes from "./routes/searchRoutes.js";
 
 dotenv.config();
 
@@ -66,6 +68,8 @@ app.use("/api/resources", resourceRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/notices", noticeRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/search", searchRoutes);
 
 // Global Error Handler (Prevents stack traces or internal details leaking to client)
 app.use((err, req, res, next) => {

@@ -6,6 +6,7 @@ export function MembersView(navigate = null) {
   container.className = "view-container";
 
   const currentUser = JSON.parse(localStorage.getItem("user")) || {
+    id: 0,
     batch: "2024",
     department: "CSE",
   };
@@ -46,11 +47,41 @@ export function MembersView(navigate = null) {
       <div class="skeleton-card"></div>
       <div class="skeleton-card"></div>
     </div>
+
+    <!-- Invite to Project Modal -->
+    <div id="inviteProjectModal" class="app-modal-overlay">
+      <div class="app-modal-dialog" style="max-width: 480px;">
+        <div class="app-modal-header">
+          <h3 id="inviteModalTitle">Invite Student to Project</h3>
+          <button class="app-modal-close" id="closeInviteModalBtn">✕</button>
+        </div>
+        <form id="inviteProjectForm">
+          <div class="app-modal-body">
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+              Select one of your projects to send a collaboration invitation to <strong id="inviteStudentTargetName" style="color: var(--primary-mint);"></strong>.
+            </p>
+
+            <div class="form-group">
+              <label class="form-label">Select Your Project *</label>
+              <select id="inviteProjectSelect" class="form-select" required>
+                <option value="">Loading your projects...</option>
+              </select>
+            </div>
+          </div>
+          <div class="app-modal-footer">
+            <button type="button" class="btn-secondary" id="cancelInviteModalBtn">Cancel</button>
+            <button type="submit" class="btn-primary" id="btnSubmitInvite">Send Invitation</button>
+          </div>
+        </form>
+      </div>
+    </div>
   `;
 
   let allMembers = [];
   let filterScope = "my-batch";
   let searchQuery = "";
+  let userOwnedProjects = [];
+  let selectedTargetStudent = null;
 
   async function fetchMembers() {
     try {
@@ -73,7 +104,6 @@ export function MembersView(navigate = null) {
     grid.innerHTML = "";
 
     const filtered = allMembers.filter((m) => {
-      // Scope filter
       let matchScope = true;
       if (filterScope === "my-batch") {
         matchScope = !currentUser.batch || m.batch === currentUser.batch;
@@ -81,7 +111,6 @@ export function MembersView(navigate = null) {
         matchScope = m.role === "cr" || m.role === "admin";
       }
 
-      // Search query
       const matchSearch =
         searchQuery === "" ||
         (m.name && m.name.toLowerCase().includes(searchQuery)) ||
@@ -120,7 +149,6 @@ export function MembersView(navigate = null) {
           ? "badge-warning"
           : "badge-muted";
 
-      // Split skills
       const skillPills = member.skills
         ? member.skills
             .split(",")
@@ -133,6 +161,8 @@ export function MembersView(navigate = null) {
             )
             .join(" ")
         : '<span style="color: var(--text-dim); font-size: 12px;">No skills listed</span>';
+
+      const isSelf = Number(member.id) === Number(currentUser.id);
 
       card.innerHTML = `
         <div style="display: flex; gap: 14px; align-items: center;">
@@ -159,28 +189,62 @@ export function MembersView(navigate = null) {
         </div>
 
         <div class="app-card-footer" style="padding-top: 12px;">
-          <button class="btn-secondary btn-sm select-teammate-btn" data-name="${escapeHTML(member.name)}" style="width: 100%; justify-content: center;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-              <circle cx="8.5" cy="7" r="4"></circle>
-              <line x1="20" y1="8" x2="20" y2="14"></line>
-              <line x1="23" y1="11" x2="17" y2="11"></line>
-            </svg>
-            <span>Invite to Project</span>
-          </button>
+          ${
+            !isSelf
+              ? `
+              <button class="btn-secondary btn-sm invite-teammate-btn" data-id="${member.id}" style="width: 100%; justify-content: center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="8.5" cy="7" r="4"></circle>
+                  <line x1="20" y1="8" x2="20" y2="14"></line>
+                  <line x1="23" y1="11" x2="17" y2="11"></line>
+                </svg>
+                <span>Invite to Project</span>
+              </button>
+              `
+              : `<span class="app-badge badge-muted" style="width: 100%; text-align: center; justify-content: center; padding: 6px;">Your Profile</span>`
+          }
         </div>
       `;
 
-      const selectBtn = card.querySelector(".select-teammate-btn");
-      if (selectBtn) {
-        selectBtn.onclick = () => {
-          showToast(`Selected ${member.name}. Open Projects to invite them to a team!`, "info");
-          if (navigate) navigate("projects");
-        };
+      const inviteBtn = card.querySelector(".invite-teammate-btn");
+      if (inviteBtn) {
+        inviteBtn.onclick = () => openInviteModal(member);
       }
 
       grid.appendChild(card);
     });
+  }
+
+  async function openInviteModal(member) {
+    selectedTargetStudent = member;
+    const modal = container.querySelector("#inviteProjectModal");
+    const nameEl = container.querySelector("#inviteStudentTargetName");
+    const select = container.querySelector("#inviteProjectSelect");
+
+    if (nameEl) nameEl.textContent = member.name;
+    if (modal) modal.classList.add("app-modal-open");
+
+    // Fetch user's owned projects
+    try {
+      const token = localStorage.getItem("token");
+      const res = await api.get("/projects/my-projects", token);
+      if (res.success && res.projects && res.projects.length > 0) {
+        userOwnedProjects = res.projects;
+        select.innerHTML = userOwnedProjects
+          .map(
+            (p) =>
+              `<option value="${p.id}">${escapeHTML(p.title)} (${escapeHTML(p.tech_stack || "Project")})</option>`
+          )
+          .join("");
+      } else {
+        select.innerHTML = '<option value="">No published projects found</option>';
+        showToast("You haven't published any projects yet. Go to Projects to create one!", "info");
+      }
+    } catch (err) {
+      select.innerHTML = '<option value="">Failed to load projects</option>';
+      showToast(err.message, "error");
+    }
   }
 
   function renderEmpty(message) {
@@ -239,6 +303,60 @@ export function MembersView(navigate = null) {
       searchInput.oninput = (e) => {
         searchQuery = e.target.value.trim().toLowerCase();
         renderMembers();
+      };
+    }
+
+    // Modal close
+    const modal = container.querySelector("#inviteProjectModal");
+    const closeBtn = container.querySelector("#closeInviteModalBtn");
+    const cancelBtn = container.querySelector("#cancelInviteModalBtn");
+    const form = container.querySelector("#inviteProjectForm");
+
+    const closeModal = () => modal && modal.classList.remove("app-modal-open");
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+    if (modal) {
+      modal.onclick = (e) => {
+        if (e.target === modal) closeModal();
+      };
+    }
+
+    // Submit Invite
+    if (form) {
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const select = container.querySelector("#inviteProjectSelect");
+        const projectId = select.value;
+        const submitBtn = container.querySelector("#btnSubmitInvite");
+
+        if (!projectId) {
+          showToast("Please select a project or publish one first.", "error");
+          return;
+        }
+
+        try {
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Inviting...";
+          }
+
+          const token = localStorage.getItem("token");
+          const res = await api.post(
+            `/projects/${projectId}/invite`,
+            { studentId: selectedTargetStudent.id },
+            token
+          );
+
+          showToast(res.message || "Invitation sent successfully!", "success");
+          closeModal();
+        } catch (err) {
+          showToast(err.message, "error");
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Send Invitation";
+          }
+        }
       };
     }
   }, 0);
