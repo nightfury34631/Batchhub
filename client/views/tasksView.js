@@ -18,7 +18,7 @@ export function TasksView(navigate = null) {
     if (typeof navigate === "function") {
       setTimeout(() => navigate("login"), 0);
     }
-    container.innerHTML = `<div style="padding: 40px; text-align: center; color: var(--text-muted); font-size: 13.5px;">Redirecting to login...</div>`;
+    container.innerHTML = `<div style="padding: 48px; text-align: center; color: var(--text-muted); font-size: 13.5px;">Redirecting to authentication...</div>`;
     return container;
   }
 
@@ -27,14 +27,26 @@ export function TasksView(navigate = null) {
 
   // View Skeleton
   container.innerHTML = `
-    <!-- 1. Page Header -->
-    <header class="tasks-header">
-      <div class="tasks-title-group">
-        <h2>Tasks, Assignments & Deadlines</h2>
-        <p>Keep track of academic assignments, lab report submissions, and batch milestone deadlines.</p>
+    <!-- 1. Academic Command Center Header -->
+    <header class="command-center-header">
+      <div class="command-header-left">
+        <div class="academic-eyebrow-strip">
+          <span class="academic-context-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+              <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+            </svg>
+            Academic Command Center
+          </span>
+          <span class="academic-term-label">Cohort Deadlines & Coursework Deliverables</span>
+        </div>
+        <h2 class="command-header-title">Tasks, Assignments & Deadlines</h2>
+        <p class="command-header-desc">
+          Centralized milestone tracking for assignments, lab submissions, and cohort projects with individualized progress tracking.
+        </p>
       </div>
-      <div class="tasks-header-action">
-        <button class="btn-add-task" id="btnOpenAddTaskModal" aria-haspopup="dialog" aria-controls="addTaskModal">
+      <div class="command-header-right">
+        <button class="btn-command-primary" id="btnOpenAddTaskModal" aria-haspopup="dialog" aria-controls="addTaskModal">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -44,91 +56,114 @@ export function TasksView(navigate = null) {
       </div>
     </header>
 
-    <!-- 2. Workload Flight Deck (Overview Metrics) -->
-    <section class="task-workload-grid" id="taskWorkloadBar" role="region" aria-label="Workload Overview">
-      <div class="task-workload-card card-overdue" data-filter="overdue" tabindex="0" role="button" aria-label="Filter overdue tasks">
-        <div class="task-workload-meta">
-          <span class="task-workload-label">Overdue</span>
-          <span class="task-workload-value" id="countOverdue">0</span>
-          <span class="task-workload-subline">Requires attention</span>
+    <!-- 2. Asymmetric Overview: Academic Flight Deck -->
+    <section class="overview-flight-deck" id="academicFlightDeck" role="region" aria-label="Academic Workload Overview">
+      <!-- 2A. Hero Active Workload Card (Left) -->
+      <div class="overview-hero-card" id="heroWorkloadCard" tabindex="0" role="button" aria-label="Filter active coursework">
+        <div class="hero-card-header">
+          <div class="hero-label-group">
+            <span class="hero-eyebrow">Active Academic Workload</span>
+            <div class="hero-main-stat"><span id="heroActiveCount">0</span> Active Deadlines</div>
+          </div>
+          <div class="hero-rate-chip" id="heroRateChip">
+            <span id="heroCompletionRate">0%</span> Completed
+          </div>
         </div>
-        <div class="task-workload-icon-box" aria-hidden="true">⚠️</div>
+
+        <div class="hero-progress-section">
+          <div class="hero-progress-meta">
+            <span id="heroProgressMeta">0 of 0 deliverables marked complete</span>
+            <span style="font-size: 11.5px; color: var(--text-dim);">Individual Progress</span>
+          </div>
+          <div class="hero-progress-track">
+            <div class="hero-progress-fill" id="heroProgressFill" style="width: 0%;"></div>
+          </div>
+        </div>
       </div>
 
-      <div class="task-workload-card card-today" data-filter="today" tabindex="0" role="button" aria-label="Filter tasks due today">
-        <div class="task-workload-meta">
-          <span class="task-workload-label">Due Today</span>
-          <span class="task-workload-value" id="countToday">0</span>
-          <span class="task-workload-subline">Due by 11:59 PM</span>
+      <!-- 2B. Satellite Metric Stack (Right) -->
+      <div class="overview-satellite-stack">
+        <!-- Overdue -->
+        <div class="satellite-metric-tile tile-overdue" data-filter="overdue" tabindex="0" role="button" aria-label="Filter overdue tasks">
+          <div class="tile-top-row">
+            <span class="tile-label">Overdue</span>
+            <div class="tile-icon-box" aria-hidden="true">⚠️</div>
+          </div>
+          <div class="tile-number" id="countOverdue">0</div>
+          <p class="tile-caption">Requires attention</p>
         </div>
-        <div class="task-workload-icon-box" aria-hidden="true">⏰</div>
-      </div>
 
-      <div class="task-workload-card card-active" data-filter="active" tabindex="0" role="button" aria-label="Filter active tasks">
-        <div class="task-workload-meta">
-          <span class="task-workload-label">Active Tasks</span>
-          <span class="task-workload-value" id="countActive">0</span>
-          <span class="task-workload-subline">Pending assignments</span>
+        <!-- Due Today -->
+        <div class="satellite-metric-tile tile-today" data-filter="today" tabindex="0" role="button" aria-label="Filter tasks due today">
+          <div class="tile-top-row">
+            <span class="tile-label">Due Today</span>
+            <div class="tile-icon-box" aria-hidden="true">⏰</div>
+          </div>
+          <div class="tile-number" id="countToday">0</div>
+          <p class="tile-caption">Due before 11:59 PM</p>
         </div>
-        <div class="task-workload-icon-box" aria-hidden="true">📋</div>
-      </div>
 
-      <div class="task-workload-card card-completed" data-filter="completed" tabindex="0" role="button" aria-label="Filter completed tasks">
-        <div class="task-workload-meta">
-          <span class="task-workload-label">Completed</span>
-          <span class="task-workload-value" id="countCompleted">0</span>
-          <span class="task-workload-subline">Marked done by you</span>
+        <!-- Completed -->
+        <div class="satellite-metric-tile tile-completed" data-filter="completed" tabindex="0" role="button" aria-label="Filter completed tasks">
+          <div class="tile-top-row">
+            <span class="tile-label">Completed</span>
+            <div class="tile-icon-box" aria-hidden="true">✓</div>
+          </div>
+          <div class="tile-number" id="countCompleted">0</div>
+          <p class="tile-caption">Archived deliverables</p>
         </div>
-        <div class="task-workload-icon-box" aria-hidden="true">✓</div>
       </div>
     </section>
 
-    <!-- 3. CR / Admin Moderation Queue Section -->
+    <!-- 3. CR / Admin Moderation Command Panel -->
     <section id="crModerationSection" style="display: none;"></section>
 
-    <!-- 4. Student Pending Submissions Banner Section -->
+    <!-- 4. Student Pending Submissions Queue -->
     <section id="studentPendingSection" style="display: none;"></section>
 
-    <!-- 5. Search, Filter & Sort Toolbar -->
-    <div class="tasks-toolbar">
-      <div class="tasks-toolbar-top-row">
-        <div class="tasks-search-container">
+    <!-- 5. Precision Task Workspace Controls -->
+    <section class="task-workspace-toolbar">
+      <div class="workspace-toolbar-top">
+        <div class="workspace-search-box">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-dim); flex-shrink: 0;" aria-hidden="true">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="taskSearchInput" placeholder="Search tasks by title, course, or instructions..." aria-label="Search academic tasks">
+          <input type="text" id="taskSearchInput" placeholder="Filter by assignment title, course code, or instructions..." aria-label="Search academic deadlines">
         </div>
 
-        <div class="tasks-tab-group" id="taskFilterTabs" role="tablist" aria-label="Task Status Filters">
-          <button class="tasks-tab-item active-tab" data-filter="all" role="tab" aria-selected="true">All Deadlines</button>
-          <button class="tasks-tab-item" data-filter="active" role="tab" aria-selected="false">Active</button>
-          <button class="tasks-tab-item" data-filter="completed" role="tab" aria-selected="false">Completed</button>
-          <button class="tasks-tab-item" data-filter="overdue" role="tab" aria-selected="false">Overdue</button>
-          ${isCRorAdmin ? `<button class="tasks-tab-item" data-filter="pending_mod" role="tab" aria-selected="false">Moderation Queue <span id="tabModBadge" class="moderation-badge" style="display: none;">0</span></button>` : ""}
-          <button class="tasks-tab-item" data-filter="my_pending" id="tabMyPending" role="tab" aria-selected="false" style="display: none;">My Pending (<span id="tabMyPendingCount">0</span>)</button>
+        <div class="workspace-status-nav" id="taskStatusNav" role="tablist" aria-label="Task Status Navigation">
+          <button class="nav-status-tab active-status" data-filter="all" role="tab" aria-selected="true">All Deadlines</button>
+          <button class="nav-status-tab" data-filter="active" role="tab" aria-selected="false">Active</button>
+          <button class="nav-status-tab" data-filter="today" role="tab" aria-selected="false">Due Today</button>
+          <button class="nav-status-tab" data-filter="overdue" role="tab" aria-selected="false">Overdue</button>
+          <button class="nav-status-tab" data-filter="completed" role="tab" aria-selected="false">Completed</button>
+          ${isCRorAdmin ? `<button class="nav-status-tab" data-filter="pending_mod" role="tab" aria-selected="false">Moderation Queue <span id="tabModBadge" class="mod-count-pill" style="display: none;">0</span></button>` : ""}
+          <button class="nav-status-tab" data-filter="my_pending" id="tabMyPending" role="tab" aria-selected="false" style="display: none;">My Pending (<span id="tabMyPendingCount">0</span>)</button>
         </div>
       </div>
 
-      <div class="tasks-toolbar-bottom-row">
-        <div class="tasks-filter-selects">
+      <div class="workspace-toolbar-bottom">
+        <div class="workspace-filter-group">
           <label for="filterCourseSelect">Course:</label>
-          <select id="filterCourseSelect" class="task-select-input" aria-label="Filter by Course">
+          <select id="filterCourseSelect" class="workspace-select-field" aria-label="Filter by Course">
             <option value="all">All Courses</option>
           </select>
 
           <label for="filterPrioritySelect">Priority:</label>
-          <select id="filterPrioritySelect" class="task-select-input" aria-label="Filter by Priority">
+          <select id="filterPrioritySelect" class="workspace-select-field" aria-label="Filter by Priority">
             <option value="all">All Priorities</option>
             <option value="High">High Priority</option>
             <option value="Medium">Medium Priority</option>
             <option value="Low">Low Priority</option>
           </select>
+
+          <span id="workspaceResultCount" style="font-size: 11.5px; color: var(--text-dim); margin-left: 4px;"></span>
         </div>
 
-        <div class="tasks-sort-group">
+        <div class="workspace-sort-group">
           <label for="sortTasksSelect">Sort by:</label>
-          <select id="sortTasksSelect" class="task-select-input" aria-label="Sort tasks">
+          <select id="sortTasksSelect" class="workspace-select-field" aria-label="Sort deadlines">
             <option value="due_asc">Nearest Due Date (First)</option>
             <option value="due_desc">Furthest Due Date</option>
             <option value="priority_desc">Priority (High to Low)</option>
@@ -137,20 +172,20 @@ export function TasksView(navigate = null) {
           </select>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- 6. Tasks Grid Container -->
-    <main id="tasksGrid" class="tasks-cards-grid" role="region" aria-live="polite" aria-label="Tasks list">
-      <div class="tasks-skeleton-card"></div>
-      <div class="tasks-skeleton-card"></div>
-      <div class="tasks-skeleton-card"></div>
+    <!-- 6. Main Editorial Task Collection -->
+    <main id="tasksGrid" class="task-collection-grid" role="region" aria-live="polite" aria-label="Academic Deadlines Workspace">
+      <div class="command-skeleton-row"></div>
+      <div class="command-skeleton-row"></div>
+      <div class="command-skeleton-row"></div>
     </main>
 
-    <!-- 7. Add Task Modal -->
+    <!-- 7. Create Task Modal -->
     <div id="addTaskModal" class="app-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="addTaskModalHeading" aria-hidden="true">
       <div class="app-modal-dialog" style="max-width: 540px;">
         <div class="app-modal-header task-modal-header">
-          <h3 id="addTaskModalHeading" class="task-modal-heading-text">Add Academic Task / Deadline</h3>
+          <h3 id="addTaskModalHeading" class="modal-title-display">Add Academic Deadline</h3>
           <button class="app-modal-close" id="closeTaskModalBtn" aria-label="Close dialog">✕</button>
         </div>
         <form id="addTaskForm">
@@ -182,7 +217,7 @@ export function TasksView(navigate = null) {
             </div>
 
             <div class="form-group">
-              <label for="tDesc" class="form-label">Task Instructions & Submission Guidelines</label>
+              <label for="tDesc" class="form-label">Submission Guidelines & Problem Details</label>
               <textarea id="tDesc" class="form-textarea" rows="3" placeholder="Provide problem numbers, PDF format guidelines, or portal link..."></textarea>
             </div>
           </div>
@@ -199,19 +234,19 @@ export function TasksView(navigate = null) {
       <div class="app-modal-dialog" style="max-width: 580px;">
         <div class="app-modal-header task-modal-header">
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <span id="detailTaskCourseEyebrow" class="task-course-tag">CSE-3201</span>
-            <div id="detailTaskPriorityIndicator" class="task-priority-pip-group">
-              <span class="priority-pip pip-medium"></span>
+            <span id="detailTaskCourseEyebrow" class="task-course-chip">CSE-3201</span>
+            <div id="detailTaskPriorityIndicator" class="task-priority-pip-badge">
+              <span class="pip-indicator-dot dot-medium"></span>
               <span id="detailTaskPriorityText">Medium Priority</span>
             </div>
-            <span id="detailTaskDeadlineBadge" class="task-status-pill pill-active">Active</span>
+            <span id="detailTaskDeadlineBadge" class="task-relative-status-badge badge-state-active">Active</span>
           </div>
           <button class="app-modal-close" id="closeTaskDetailBtn" aria-label="Close details dialog">✕</button>
         </div>
         <div class="app-modal-body" style="display: flex; flex-direction: column; gap: 14px;">
-          <h2 id="detailTaskTitle" class="task-modal-heading-text"></h2>
+          <h2 id="detailTaskTitle" class="modal-title-display"></h2>
 
-          <div class="task-detail-modal-meta">
+          <div class="modal-metadata-strip">
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="color: var(--primary-mint);">⏰</span>
               <div><strong>Submission Due:</strong> <span id="detailTaskDue"></span></div>
@@ -224,7 +259,7 @@ export function TasksView(navigate = null) {
 
           <div>
             <span style="font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-muted); display: block; margin-bottom: 6px;">Instructions & Problem Details</span>
-            <div id="detailTaskInstructions" class="task-detail-instructions-block"></div>
+            <div id="detailTaskInstructions" class="modal-instructions-scroll"></div>
           </div>
         </div>
         <div class="app-modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
@@ -242,7 +277,7 @@ export function TasksView(navigate = null) {
     </div>
   `;
 
-  // State
+  // Internal State
   let allTasks = [];
   let pendingModerationTasks = [];
   let myPendingTasks = [];
@@ -255,40 +290,40 @@ export function TasksView(navigate = null) {
   let activeDetailTask = null;
   let lastActiveElement = null;
 
-  // Deadline calculation
+  // Deadline info & relative time
   function getDeadlineInfo(dueDateStr, isCompleted) {
     if (isCompleted) {
-      return { label: "✓ Completed", className: "pill-completed", isCompleted: true, isOverdue: false, isToday: false };
+      return { label: "✓ Completed", className: "badge-state-completed", isCompleted: true, isOverdue: false, isToday: false };
     }
     const dueTime = new Date(dueDateStr).getTime();
     const now = Date.now();
     const diffHours = (dueTime - now) / (1000 * 3600);
 
     if (diffHours < 0) {
-      return { label: "⚠️ Overdue", className: "pill-overdue", isCompleted: false, isOverdue: true, isToday: false };
+      return { label: "⚠️ Overdue", className: "badge-state-overdue", isCompleted: false, isOverdue: true, isToday: false };
     } else if (diffHours <= 24) {
-      return { label: "⏰ Due Today", className: "pill-today", isCompleted: false, isOverdue: false, isToday: true };
+      return { label: "⏰ Due Today", className: "badge-state-today", isCompleted: false, isOverdue: false, isToday: true };
     } else if (diffHours <= 72) {
       const days = Math.ceil(diffHours / 24);
-      return { label: `⏳ Due in ${days}d`, className: "pill-soon", isCompleted: false, isOverdue: false, isToday: false };
+      return { label: `⏳ Due in ${days}d`, className: "badge-state-soon", isCompleted: false, isOverdue: false, isToday: false };
     }
     const diffDays = Math.ceil(diffHours / 24);
-    return { label: `In ${diffDays} days`, className: "pill-active", isCompleted: false, isOverdue: false, isToday: false };
+    return { label: `In ${diffDays} days`, className: "badge-state-active", isCompleted: false, isOverdue: false, isToday: false };
   }
 
   function getPriorityMeta(priority) {
     switch (priority) {
       case "High":
-        return { pipClass: "pip-high", label: "High Priority" };
+        return { dotClass: "dot-high", label: "High Priority" };
       case "Low":
-        return { pipClass: "pip-low", label: "Low Priority" };
+        return { dotClass: "dot-low", label: "Low Priority" };
       case "Medium":
       default:
-        return { pipClass: "pip-medium", label: "Medium Priority" };
+        return { dotClass: "dot-medium", label: "Medium Priority" };
     }
   }
 
-  // Populate Course Datalist & Course Filter Dropdown
+  // Populate Course Dropdowns
   function updateCourseOptions() {
     const courseSelect = container.querySelector("#filterCourseSelect");
     const datalist = container.querySelector("#taskCourseDatalist");
@@ -348,7 +383,7 @@ export function TasksView(navigate = null) {
         });
 
         updateCourseOptions();
-        updateWorkloadCounts();
+        updateWorkloadFlightDeck();
         renderPendingModerationSection();
         renderStudentPendingSection();
         renderTasks();
@@ -360,12 +395,13 @@ export function TasksView(navigate = null) {
     }
   }
 
-  // Workload Flight Deck Counts
-  function updateWorkloadCounts() {
+  // Workload Flight Deck Counts & Hero Progress Track
+  function updateWorkloadFlightDeck() {
     let overdue = 0;
     let today = 0;
     let active = 0;
     let completed = 0;
+    const total = allTasks.length;
 
     allTasks.forEach((task) => {
       const isDone = Number(task.is_completed) === 1;
@@ -379,14 +415,26 @@ export function TasksView(navigate = null) {
       }
     });
 
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    // Update Hero Card
+    const elHeroActive = container.querySelector("#heroActiveCount");
+    const elHeroRate = container.querySelector("#heroCompletionRate");
+    const elHeroMeta = container.querySelector("#heroProgressMeta");
+    const elHeroFill = container.querySelector("#heroProgressFill");
+
+    if (elHeroActive) elHeroActive.textContent = active;
+    if (elHeroRate) elHeroRate.textContent = `${completionRate}%`;
+    if (elHeroMeta) elHeroMeta.textContent = `${completed} of ${total} batch deliverables submitted`;
+    if (elHeroFill) elHeroFill.style.width = `${completionRate}%`;
+
+    // Update Satellite Tiles
     const elOverdue = container.querySelector("#countOverdue");
     const elToday = container.querySelector("#countToday");
-    const elActive = container.querySelector("#countActive");
     const elCompleted = container.querySelector("#countCompleted");
 
     if (elOverdue) elOverdue.textContent = overdue;
     if (elToday) elToday.textContent = today;
-    if (elActive) elActive.textContent = active;
     if (elCompleted) elCompleted.textContent = completed;
 
     // Moderation badge
@@ -413,7 +461,7 @@ export function TasksView(navigate = null) {
     }
   }
 
-  // Render CR / Admin Moderation Queue
+  // Render CR / Admin Moderation Panel
   function renderPendingModerationSection() {
     const section = container.querySelector("#crModerationSection");
     if (!section) return;
@@ -426,41 +474,41 @@ export function TasksView(navigate = null) {
 
     section.style.display = "block";
     section.innerHTML = `
-      <div class="moderation-section" role="region" aria-label="Class Representative Moderation Queue">
-        <div class="moderation-header-row">
-          <div class="moderation-title-group">
+      <div class="moderation-command-panel" role="region" aria-label="Class Representative Moderation Queue">
+        <div class="mod-panel-header">
+          <div class="mod-panel-title-area">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--warning-orange);" aria-hidden="true">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
             </svg>
             <h3>Class Representative Moderation Queue</h3>
-            <span class="moderation-badge">${pendingModerationTasks.length} Pending Approval</span>
+            <span class="mod-count-pill">${pendingModerationTasks.length} Pending Approval</span>
           </div>
-          <span class="moderation-subtext">Review cohort student submissions to maintain quality.</span>
+          <span class="mod-panel-subtext">Review peer student submissions before publishing to the cohort schedule.</span>
         </div>
 
-        <div class="moderation-cards-grid">
+        <div class="mod-items-grid">
           ${pendingModerationTasks.map((task) => {
             const pMeta = getPriorityMeta(task.priority);
             return `
-              <div class="moderation-item-card" data-task-id="${task.id}">
-                <div class="moderation-item-top">
-                  <span class="task-course-tag">${escapeHTML(task.course_code || "General")}</span>
-                  <div class="task-priority-pip-group">
-                    <span class="priority-pip ${pMeta.pipClass}"></span>
+              <div class="mod-submission-tile" data-task-id="${task.id}">
+                <div class="mod-tile-top">
+                  <span class="task-course-chip">${escapeHTML(task.course_code || "General")}</span>
+                  <div class="task-priority-pip-badge">
+                    <span class="pip-indicator-dot ${pMeta.dotClass}"></span>
                     <span>${escapeHTML(task.priority)}</span>
                   </div>
                 </div>
-                <h4 class="moderation-item-title">${escapeHTML(task.title)}</h4>
-                <div class="moderation-item-details">
+                <h4 class="mod-tile-title">${escapeHTML(task.title)}</h4>
+                <div class="mod-tile-meta">
                   <div><strong>Due:</strong> ${formatDate(task.due_date)} at ${formatTime(task.due_date)}</div>
                   <div><strong>Submitted by:</strong> ${escapeHTML(task.creator_name || "Student")} ${task.creator_student_id ? `(${escapeHTML(task.creator_student_id)})` : ""}</div>
                   ${task.description ? `<p style="margin-top: 4px; color: var(--text-secondary); line-height: 1.4;">${escapeHTML(task.description)}</p>` : ""}
                 </div>
-                <div class="moderation-item-actions">
-                  <button class="btn-approve-action" data-id="${task.id}" aria-label="Approve task ${escapeHTML(task.title)}">
+                <div class="mod-tile-actions">
+                  <button class="btn-mod-approve-entry" data-id="${task.id}" aria-label="Approve task ${escapeHTML(task.title)}">
                     ✓ Approve Deadline
                   </button>
-                  <button class="btn-decline-action" data-id="${task.id}" aria-label="Decline task ${escapeHTML(task.title)}">
+                  <button class="btn-mod-decline-entry" data-id="${task.id}" aria-label="Decline task ${escapeHTML(task.title)}">
                     ✕ Decline
                   </button>
                 </div>
@@ -472,7 +520,7 @@ export function TasksView(navigate = null) {
     `;
 
     // Bind Approve Actions
-    section.querySelectorAll(".btn-approve-action").forEach((btn) => {
+    section.querySelectorAll(".btn-mod-approve-entry").forEach((btn) => {
       btn.onclick = async (e) => {
         e.stopPropagation();
         const taskId = btn.getAttribute("data-id");
@@ -492,7 +540,7 @@ export function TasksView(navigate = null) {
     });
 
     // Bind Decline Actions
-    section.querySelectorAll(".btn-decline-action").forEach((btn) => {
+    section.querySelectorAll(".btn-mod-decline-entry").forEach((btn) => {
       btn.onclick = async (e) => {
         e.stopPropagation();
         const taskId = btn.getAttribute("data-id");
@@ -520,7 +568,7 @@ export function TasksView(navigate = null) {
     });
   }
 
-  // Render Student Pending Submissions Section
+  // Render Student Pending Submissions Queue
   function renderStudentPendingSection() {
     const section = container.querySelector("#studentPendingSection");
     if (!section) return;
@@ -533,8 +581,8 @@ export function TasksView(navigate = null) {
 
     section.style.display = "block";
     section.innerHTML = `
-      <div class="student-pending-section" role="region" aria-label="My Submissions Awaiting Approval">
-        <div class="student-pending-header-row">
+      <div class="student-queue-banner" role="region" aria-label="My Submissions Awaiting Approval">
+        <div class="student-queue-header">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="12" cy="12" r="10"></circle>
             <polyline points="12 6 12 12 16 14"></polyline>
@@ -542,19 +590,19 @@ export function TasksView(navigate = null) {
           <span>Your Submitted Tasks Awaiting Class Representative Review (${myPendingTasks.length})</span>
         </div>
         <p style="font-size: 11.5px; color: var(--text-muted); margin: 0;">
-          Your submissions are under review by a batch representative. Once approved, they will appear on the shared batch deadline calendar.
+          Your proposals are in the moderation queue. Once approved by a cohort lead, they will be published to the batch deadline calendar.
         </p>
-        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
           ${myPendingTasks.map((task) => `
-            <div class="student-pending-item-box">
+            <div class="student-queue-item">
               <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <span class="task-course-tag">${escapeHTML(task.course_code || "General")}</span>
+                <span class="task-course-chip">${escapeHTML(task.course_code || "General")}</span>
                 <span style="font-size: 13.5px; font-weight: 600; color: var(--text-primary);">${escapeHTML(task.title)}</span>
                 <span style="font-size: 11.5px; color: var(--text-dim);">Due: ${formatDate(task.due_date)}</span>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="task-status-pill pill-soon">⏳ Awaiting CR Review</span>
-                <button class="btn-sm btn-secondary btn-withdraw-task" data-id="${task.id}" title="Withdraw submission" style="font-size: 11.5px; padding: 4px 8px;">
+                <span class="task-relative-status-badge badge-state-soon">⏳ Awaiting CR Review</span>
+                <button class="btn-sm btn-secondary btn-withdraw-task" data-id="${task.id}" title="Withdraw submission" style="font-size: 11.5px; padding: 4px 10px;">
                   Withdraw
                 </button>
               </div>
@@ -599,7 +647,7 @@ export function TasksView(navigate = null) {
       const isOverdue = !isCompleted && diffHours < 0;
       const isToday = !isCompleted && diffHours >= 0 && diffHours <= 24;
 
-      // Status Filter Tab
+      // Status Filter
       let matchStatus = true;
       if (currentFilter === "active") matchStatus = !isCompleted;
       else if (currentFilter === "completed") matchStatus = isCompleted;
@@ -607,13 +655,13 @@ export function TasksView(navigate = null) {
       else if (currentFilter === "today") matchStatus = isToday;
       else if (currentFilter === "pending_mod" || currentFilter === "my_pending") return false;
 
-      // Secondary Course Filter
+      // Course Filter
       let matchCourse = true;
       if (selectedCourse !== "all") {
         matchCourse = (task.course_code || "").toUpperCase().trim() === selectedCourse;
       }
 
-      // Secondary Priority Filter
+      // Priority Filter
       let matchPriority = true;
       if (selectedPriority !== "all") {
         matchPriority = task.priority === selectedPriority;
@@ -665,39 +713,46 @@ export function TasksView(navigate = null) {
     return filtered;
   }
 
-  // Render Main Tasks Grid
+  // Render Main Tasks Collection
   function renderTasks() {
     const grid = container.querySelector("#tasksGrid");
     if (!grid) return;
     grid.innerHTML = "";
 
+    const counterSpan = container.querySelector("#workspaceResultCount");
+
     // If "pending_mod" tab is selected
     if (currentFilter === "pending_mod") {
+      if (counterSpan) counterSpan.textContent = `Moderation Queue (${pendingModerationTasks.length})`;
       if (pendingModerationTasks.length === 0) {
-        renderEmpty("The Class Representative moderation queue is completely clear! No tasks awaiting review.");
+        renderEmpty("The Class Representative moderation queue is clear! No proposals awaiting review.");
       } else {
-        renderEmpty(`Showing ${pendingModerationTasks.length} tasks in the Moderation Queue above.`);
+        renderEmpty(`Showing ${pendingModerationTasks.length} task proposals in the Moderation Queue above.`);
       }
       return;
     }
 
     // If "my_pending" tab is selected
     if (currentFilter === "my_pending") {
+      if (counterSpan) counterSpan.textContent = `My Pending Submissions (${myPendingTasks.length})`;
       if (myPendingTasks.length === 0) {
-        renderEmpty("You have no pending task submissions awaiting review.");
+        renderEmpty("You currently have no task proposals awaiting Class Representative review.");
       } else {
-        renderEmpty(`Showing your ${myPendingTasks.length} pending submission(s) awaiting review above.`);
+        renderEmpty(`Showing your ${myPendingTasks.length} submitted proposal(s) awaiting review above.`);
       }
       return;
     }
 
     const tasks = getFilteredAndSortedTasks();
+    if (counterSpan) {
+      counterSpan.textContent = `Showing ${tasks.length} of ${allTasks.length} deadlines`;
+    }
 
     if (tasks.length === 0) {
       if (searchQuery || selectedCourse !== "all" || selectedPriority !== "all" || currentFilter !== "all") {
-        renderEmpty("No academic tasks match your selected search or filter criteria.");
+        renderEmpty("No academic deadlines match your current search or filter criteria.");
       } else {
-        renderEmpty("All caught up! No active tasks or pending assignment deadlines for your batch.");
+        renderEmpty("All caught up! No active tasks or pending assignment deadlines for your batch cohort.");
       }
       return;
     }
@@ -709,45 +764,49 @@ export function TasksView(navigate = null) {
       const pMeta = getPriorityMeta(task.priority);
 
       const card = document.createElement("article");
-      card.className = "task-item-card";
+      card.className = "command-task-card";
       card.setAttribute("tabindex", "0");
       card.setAttribute("role", "article");
       card.setAttribute("aria-label", `${task.title}, Course ${task.course_code || "General"}, ${deadline.label}`);
 
       card.innerHTML = `
-        <div class="task-card-eyebrow-row">
-          <span class="task-course-tag">${escapeHTML(task.course_code || "General")}</span>
-          <div class="task-priority-pip-group">
-            <span class="priority-pip ${pMeta.pipClass}"></span>
+        <!-- Left: Course Chip & Priority Pip -->
+        <div class="task-identity-col">
+          <span class="task-course-chip">${escapeHTML(task.course_code || "General")}</span>
+          <div class="task-priority-pip-badge">
+            <span class="pip-indicator-dot ${pMeta.dotClass}"></span>
             <span>${escapeHTML(pMeta.label)}</span>
           </div>
         </div>
 
-        <div>
-          <h3 class="task-card-title-text ${isCompleted ? "is-strikethrough" : ""}">${escapeHTML(task.title)}</h3>
-        </div>
-
-        <p class="task-card-desc-preview">
-          ${escapeHTML(task.description || "No specific instructions provided.")}
-        </p>
-
-        <div class="task-card-deadline-strip">
-          <div class="deadline-time-text">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            <span>${formatDate(task.due_date)} · ${formatTime(task.due_date)}</span>
+        <!-- Center: Headline, Summary & Attribution -->
+        <div class="task-content-col">
+          <h3 class="task-headline-title ${isCompleted ? "task-strikethrough" : ""}">${escapeHTML(task.title)}</h3>
+          <p class="task-summary-text">
+            ${escapeHTML(task.description || "No specific guidelines or problem instructions provided.")}
+          </p>
+          <div class="task-meta-breadcrumbs">
+            <span>By: ${escapeHTML(task.creator_name || "Batch Member")}</span>
+            <span>·</span>
+            <span>Batch CSE</span>
           </div>
-          <span class="task-status-pill ${deadline.className}">${escapeHTML(deadline.label)}</span>
         </div>
 
-        <div class="task-card-footer-row">
-          <span class="task-creator-credit" title="Submitted by ${escapeHTML(task.creator_name || "Batch Member")}">
-            By: ${escapeHTML(task.creator_name || "Batch Member")}
-          </span>
-          <div class="task-card-btn-group">
-            <button class="btn-toggle-done ${isCompleted ? "is-completed-state" : ""}" data-id="${task.id}" aria-label="${isCompleted ? "Mark task as incomplete" : "Mark task as complete"}">
+        <!-- Right: Deadline & Direct Actions -->
+        <div class="task-action-col">
+          <div class="task-deadline-cluster">
+            <div class="task-due-time-label">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span>${formatDate(task.due_date)} · ${formatTime(task.due_date)}</span>
+            </div>
+            <span class="task-relative-status-badge ${deadline.className}">${escapeHTML(deadline.label)}</span>
+          </div>
+
+          <div class="task-control-buttons">
+            <button class="btn-command-toggle-done ${isCompleted ? "done-active" : ""}" data-id="${task.id}" aria-label="${isCompleted ? "Mark task as incomplete" : "Mark task as complete"}">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
@@ -755,7 +814,7 @@ export function TasksView(navigate = null) {
             </button>
 
             ${canDelete ? `
-              <button class="btn-card-delete" data-id="${task.id}" title="Delete Task" aria-label="Delete task ${escapeHTML(task.title)}">
+              <button class="btn-command-delete-task" data-id="${task.id}" title="Delete Task" aria-label="Delete task ${escapeHTML(task.title)}">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <polyline points="3 6 5 6 21 6"></polyline>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -767,19 +826,19 @@ export function TasksView(navigate = null) {
       `;
 
       card.onclick = (e) => {
-        if (e.target.closest(".btn-toggle-done") || e.target.closest(".btn-card-delete")) return;
+        if (e.target.closest(".btn-command-toggle-done") || e.target.closest(".btn-command-delete-task")) return;
         openTaskDetailModal(task, deadline, pMeta, card);
       };
 
       card.onkeydown = (e) => {
         if (e.key === "Enter" || e.key === " ") {
-          if (e.target.closest(".btn-toggle-done") || e.target.closest(".btn-card-delete")) return;
+          if (e.target.closest(".btn-command-toggle-done") || e.target.closest(".btn-command-delete-task")) return;
           e.preventDefault();
           openTaskDetailModal(task, deadline, pMeta, card);
         }
       };
 
-      const compBtn = card.querySelector(".btn-toggle-done");
+      const compBtn = card.querySelector(".btn-command-toggle-done");
       if (compBtn) {
         compBtn.onclick = async (e) => {
           e.stopPropagation();
@@ -787,7 +846,7 @@ export function TasksView(navigate = null) {
         };
       }
 
-      const delBtn = card.querySelector(".btn-card-delete");
+      const delBtn = card.querySelector(".btn-command-delete-task");
       if (delBtn) {
         delBtn.onclick = async (e) => {
           e.stopPropagation();
@@ -816,7 +875,7 @@ export function TasksView(navigate = null) {
     }
   }
 
-  // Delete Task API helper
+  // Delete Task Prompt
   async function deleteTaskPrompt(task) {
     const confirmed = await confirmDialog({
       title: "Delete Shared Task",
@@ -850,12 +909,12 @@ export function TasksView(navigate = null) {
     container.querySelector("#detailTaskCourseEyebrow").textContent = task.course_code || "General";
     container.querySelector("#detailTaskPriorityText").textContent = pMeta.label;
     
-    const pip = container.querySelector("#detailTaskPriorityIndicator .priority-pip");
-    if (pip) pip.className = `priority-pip ${pMeta.pipClass}`;
+    const pip = container.querySelector("#detailTaskPriorityIndicator .pip-indicator-dot");
+    if (pip) pip.className = `pip-indicator-dot ${pMeta.dotClass}`;
 
     const badge = container.querySelector("#detailTaskDeadlineBadge");
     badge.textContent = deadline.label;
-    badge.className = `task-status-pill ${deadline.className}`;
+    badge.className = `task-relative-status-badge ${deadline.className}`;
 
     container.querySelector("#detailTaskDue").textContent = `${formatDate(task.due_date)} at ${formatTime(task.due_date)}`;
     container.querySelector("#detailTaskCreator").textContent = task.creator_name || "Batch Member";
@@ -902,15 +961,15 @@ export function TasksView(navigate = null) {
     const grid = container.querySelector("#tasksGrid");
     if (!grid) return;
     grid.innerHTML = `
-      <div class="tasks-empty-card">
-        <div class="tasks-empty-icon" aria-hidden="true">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <div class="command-empty-state">
+        <div class="empty-state-glyph-box" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="9 11 12 14 22 4"></polyline>
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
           </svg>
         </div>
-        <h4 class="tasks-empty-title">No Deadlines Found</h4>
-        <p class="tasks-empty-desc">${escapeHTML(message)}</p>
+        <h4 class="empty-state-heading">No Deadlines Found</h4>
+        <p class="empty-state-copy">${escapeHTML(message)}</p>
       </div>
     `;
   }
@@ -919,16 +978,16 @@ export function TasksView(navigate = null) {
     const grid = container.querySelector("#tasksGrid");
     if (!grid) return;
     grid.innerHTML = `
-      <div class="tasks-empty-card" style="border-color: rgba(248, 113, 113, 0.4);">
-        <div class="tasks-empty-icon" style="background: var(--danger-soft); color: var(--danger-red); border-color: rgba(248, 113, 113, 0.3);">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <div class="command-empty-state" style="border-color: rgba(248, 113, 113, 0.4);">
+        <div class="empty-state-glyph-box" style="background: var(--danger-soft); color: var(--danger-red); border-color: rgba(248, 113, 113, 0.3);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="8" x2="12" y2="12"></line>
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
         </div>
-        <h4 class="tasks-empty-title" style="color: var(--danger-red);">Unable to Load Tasks</h4>
-        <p class="tasks-empty-desc">${escapeHTML(message)}</p>
+        <h4 class="empty-state-heading" style="color: var(--danger-red);">Unable to Load Deadlines</h4>
+        <p class="empty-state-copy">${escapeHTML(message)}</p>
         <button class="btn-secondary btn-sm" id="btnRetryLoadTasks" style="margin-top: 8px;">Try Again</button>
       </div>
     `;
@@ -940,49 +999,74 @@ export function TasksView(navigate = null) {
   setTimeout(() => {
     fetchTasks();
 
-    // 1. Workload chip quick-filters
-    container.querySelectorAll(".task-workload-card").forEach((chip) => {
-      chip.onclick = () => {
-        const targetFilter = chip.getAttribute("data-filter");
-        container.querySelectorAll(".task-workload-card").forEach((c) => c.classList.remove("active-workload"));
-        chip.classList.add("active-workload");
+    // 1. Hero Card click -> active filter
+    const heroCard = container.querySelector("#heroWorkloadCard");
+    if (heroCard) {
+      heroCard.onclick = () => {
+        container.querySelectorAll(".nav-status-tab").forEach((t) => {
+          t.classList.remove("active-status");
+          t.setAttribute("aria-selected", "false");
+        });
+        const activeTab = container.querySelector('.nav-status-tab[data-filter="active"]');
+        if (activeTab) {
+          activeTab.classList.add("active-status");
+          activeTab.setAttribute("aria-selected", "true");
+        }
+        container.querySelectorAll(".satellite-metric-tile").forEach((t) => t.classList.remove("tile-active"));
+        currentFilter = "active";
+        renderTasks();
+      };
+      heroCard.onkeydown = (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          heroCard.click();
+        }
+      };
+    }
 
-        const tabBtn = container.querySelector(`.tasks-tab-item[data-filter="${targetFilter}"]`);
+    // 2. Satellite Metric Tiles click -> filter
+    container.querySelectorAll(".satellite-metric-tile").forEach((tile) => {
+      tile.onclick = () => {
+        const targetFilter = tile.getAttribute("data-filter");
+        container.querySelectorAll(".satellite-metric-tile").forEach((t) => t.classList.remove("tile-active"));
+        tile.classList.add("tile-active");
+
+        const tabBtn = container.querySelector(`.nav-status-tab[data-filter="${targetFilter}"]`);
         if (tabBtn) {
-          container.querySelectorAll(".tasks-tab-item").forEach((t) => {
-            t.classList.remove("active-tab");
+          container.querySelectorAll(".nav-status-tab").forEach((t) => {
+            t.classList.remove("active-status");
             t.setAttribute("aria-selected", "false");
           });
-          tabBtn.classList.add("active-tab");
+          tabBtn.classList.add("active-status");
           tabBtn.setAttribute("aria-selected", "true");
         }
         currentFilter = targetFilter;
         renderTasks();
       };
-      chip.onkeydown = (e) => {
+      tile.onkeydown = (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          chip.click();
+          tile.click();
         }
       };
     });
 
-    // 2. Filter Tabs
-    container.querySelectorAll(".tasks-tab-item").forEach((tab) => {
+    // 3. Status Navigation Tabs
+    container.querySelectorAll(".nav-status-tab").forEach((tab) => {
       tab.onclick = () => {
-        container.querySelectorAll(".tasks-tab-item").forEach((t) => {
-          t.classList.remove("active-tab");
+        container.querySelectorAll(".nav-status-tab").forEach((t) => {
+          t.classList.remove("active-status");
           t.setAttribute("aria-selected", "false");
         });
-        tab.classList.add("active-tab");
+        tab.classList.add("active-status");
         tab.setAttribute("aria-selected", "true");
 
         currentFilter = tab.getAttribute("data-filter");
-        container.querySelectorAll(".task-workload-card").forEach((c) => {
-          if (c.getAttribute("data-filter") === currentFilter) {
-            c.classList.add("active-workload");
+        container.querySelectorAll(".satellite-metric-tile").forEach((t) => {
+          if (t.getAttribute("data-filter") === currentFilter) {
+            t.classList.add("tile-active");
           } else {
-            c.classList.remove("active-workload");
+            t.classList.remove("tile-active");
           }
         });
 
@@ -990,7 +1074,7 @@ export function TasksView(navigate = null) {
       };
     });
 
-    // 3. Search Field
+    // 4. Search Box
     const searchInput = container.querySelector("#taskSearchInput");
     if (searchInput) {
       searchInput.oninput = (e) => {
@@ -999,7 +1083,7 @@ export function TasksView(navigate = null) {
       };
     }
 
-    // 4. Course Filter Dropdown
+    // 5. Course Filter Dropdown
     const courseSelect = container.querySelector("#filterCourseSelect");
     if (courseSelect) {
       courseSelect.onchange = (e) => {
@@ -1008,7 +1092,7 @@ export function TasksView(navigate = null) {
       };
     }
 
-    // 5. Priority Filter Dropdown
+    // 6. Priority Filter Dropdown
     const prioritySelect = container.querySelector("#filterPrioritySelect");
     if (prioritySelect) {
       prioritySelect.onchange = (e) => {
@@ -1017,7 +1101,7 @@ export function TasksView(navigate = null) {
       };
     }
 
-    // 6. Sort Dropdown
+    // 7. Sort Dropdown
     const sortSelect = container.querySelector("#sortTasksSelect");
     if (sortSelect) {
       sortSelect.onchange = (e) => {
@@ -1026,7 +1110,7 @@ export function TasksView(navigate = null) {
       };
     }
 
-    // 7. Add Task Modal
+    // 8. Add Task Modal
     const addModal = container.querySelector("#addTaskModal");
     const openAddBtn = container.querySelector("#btnOpenAddTaskModal");
     const closeAddBtn = container.querySelector("#closeTaskModalBtn");
@@ -1065,7 +1149,7 @@ export function TasksView(navigate = null) {
       };
     }
 
-    // 8. Task Detail Modal Close
+    // 9. Task Detail Modal Close
     const detailModal = container.querySelector("#taskDetailModal");
     const closeDetailBtn = container.querySelector("#closeTaskDetailBtn");
     const dismissDetailBtn = container.querySelector("#dismissTaskDetailBtn");
@@ -1078,7 +1162,7 @@ export function TasksView(navigate = null) {
       };
     }
 
-    // 9. Keyboard Escape Key Modal Dismissal
+    // 10. Global Escape Key Handler
     const handleGlobalKeydown = (e) => {
       if (e.key === "Escape") {
         if (detailModal && detailModal.classList.contains("app-modal-open")) {
@@ -1090,7 +1174,7 @@ export function TasksView(navigate = null) {
     };
     container.addEventListener("keydown", handleGlobalKeydown);
 
-    // 10. Form Submission
+    // 11. Add Task Form Submit
     if (addForm) {
       addForm.onsubmit = async (e) => {
         e.preventDefault();
