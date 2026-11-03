@@ -1,10 +1,13 @@
 import express from "express";
-import { getProfile, updateProfile } from "../controllers/userController.js";
-import { verifyToken } from "../middleware/authMiddleware.js";
+import { getProfile, updateProfile, updateUserRole } from "../controllers/userController.js";
+import { verifyToken, requireRole } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 router.get("/profile", verifyToken, getProfile);
 router.put("/profile", verifyToken, updateProfile);
+
+// Admin-only role management
+router.put("/:userId/role", verifyToken, requireRole("admin"), updateUserRole);
 
 export default router;

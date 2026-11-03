@@ -13,13 +13,48 @@ import noticeRoutes from "./routes/noticeRoutes.js";
 
 dotenv.config();
 
+// Critical Environment Validation
+const REQUIRED_ENV_VARS = ["JWT_SECRET", "DB_NAME"];
+const missingVars = REQUIRED_ENV_VARS.filter((v) => !process.env[v] || process.env[v].trim() === "");
+
+if (missingVars.length > 0) {
+  console.error(`FATAL CONFIGURATION ERROR: Missing required environment variable(s): ${missingVars.join(", ")}`);
+  console.error("Please configure them in server/.env before starting the server.");
+  process.exit(1);
+}
+
+// Insecure Secret Check (Prevent default or trivial secrets)
+const jwtSecret = process.env.JWT_SECRET.trim();
+if (
+  jwtSecret.length < 16 ||
+  jwtSecret === "secret_key" ||
+  jwtSecret === "your_jwt_secret" ||
+  jwtSecret === "replace_with_a_long_random_secret_at_least_32_chars"
+) {
+  console.error("FATAL SECURITY ERROR: JWT_SECRET is missing, default, or under 16 characters. Startup aborted.");
+  process.exit(1);
+}
+
 const app = express();
 
-app.use(cors());
+// Security: Restrict CORS origins (allow localhost clients, disable wildcards in sensitive contexts)
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, postman) or localhost origins
+      if (!origin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS policy violation"));
+      }
+    },
+    credentials: true,
+  })
+);
 
-// INCREASE PAYLOAD SIZE LIMITS TO HANDLE BASE64 IMAGES
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+// Payload size limit to handle base64 avatars while guarding against excessive payload attacks
+app.use(express.json({ limit: "15mb" }));
+app.use(express.urlencoded({ limit: "15mb", extended: true }));
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -32,7 +67,16 @@ app.use("/api/projects", projectRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/notices", noticeRoutes);
 
+// Global Error Handler (Prevents stack traces or internal details leaking to client)
+app.use((err, req, res, next) => {
+  console.error("Unhandled Error:", err.message);
+  if (err.message === "CORS policy violation") {
+    return res.status(403).json({ success: false, message: "Origin not allowed by CORS." });
+  }
+  res.status(500).json({ success: false, message: "Internal server error." });
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running securely on port ${PORT}`);
 });

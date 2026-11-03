@@ -72,9 +72,15 @@ export function ProjectsView(navigate = null) {
               <input type="text" id="pTitle" class="form-input" required placeholder="e.g., PeerShare - Academic Notes Exchange">
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Tech Stack (comma separated) *</label>
-              <input type="text" id="pTech" class="form-input" required placeholder="e.g., Node.js, Express, MySQL, CSS">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Tech Stack (comma separated) *</label>
+                <input type="text" id="pTech" class="form-input" required placeholder="e.g., Node.js, Express, MySQL, CSS">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Department *</label>
+                <input type="text" id="pDept" class="form-input" required value="${escapeHTML(user.department || "CSE")}" placeholder="e.g. CSE">
+              </div>
             </div>
 
             <div class="form-group">
@@ -102,6 +108,7 @@ export function ProjectsView(navigate = null) {
   `;
 
   let allProjects = [];
+  let myRequests = [];
   let searchQuery = "";
 
   async function fetchProjectsData() {
@@ -110,6 +117,7 @@ export function ProjectsView(navigate = null) {
       const res = await api.get("/projects", token);
       if (res.success) {
         allProjects = res.projects || [];
+        myRequests = res.myRequests || [];
         renderProjects();
         renderIncomingRequests(res.incomingRequests || []);
       }
@@ -207,7 +215,8 @@ export function ProjectsView(navigate = null) {
       const card = document.createElement("div");
       card.className = "app-card";
 
-      const isOwner = p.created_by === user.id;
+      const isOwner = Number(p.created_by) === Number(user.id);
+      const myReq = myRequests.find((r) => Number(r.project_id) === Number(p.id));
 
       // Tech stack badges
       const techPills = p.tech_stack
@@ -221,6 +230,17 @@ export function ProjectsView(navigate = null) {
             )
             .join(" ")
         : "";
+
+      let joinActionHtml = "";
+      if (isOwner) {
+        joinActionHtml = `<span class="app-badge badge-info" style="font-size: 12px; padding: 6px 10px;">Owner</span>`;
+      } else if (myReq && myReq.status === "approved") {
+        joinActionHtml = `<span class="app-badge badge-emerald" style="font-size: 12px; padding: 6px 10px;">Joined Team ✓</span>`;
+      } else if (myReq && myReq.status === "pending") {
+        joinActionHtml = `<button class="btn-secondary btn-sm" disabled style="opacity: 0.75; cursor: default;"><span>Requested ⏳</span></button>`;
+      } else {
+        joinActionHtml = `<button class="btn-primary btn-sm join-project-btn" data-id="${p.id}"><span>Join Team</span></button>`;
+      }
 
       card.innerHTML = `
         <div class="app-card-header">
@@ -255,13 +275,7 @@ export function ProjectsView(navigate = null) {
             <span>GitHub / Repo</span>
           </a>
 
-          ${
-            !isOwner
-              ? `<button class="btn-primary btn-sm join-project-btn" data-id="${p.id}">
-                  <span>Join Team</span>
-                 </button>`
-              : ""
-          }
+          ${joinActionHtml}
         </div>
       `;
 
@@ -274,7 +288,7 @@ export function ProjectsView(navigate = null) {
             joinBtn.textContent = "Sending...";
             const res = await api.post(`/projects/${p.id}/join`, {}, token);
             showToast(res.message || "Join request sent to project owner!", "success");
-            joinBtn.textContent = "Requested";
+            fetchProjectsData();
           } catch (err) {
             showToast(err.message, "error");
             joinBtn.disabled = false;
@@ -299,7 +313,7 @@ export function ProjectsView(navigate = null) {
             <polyline points="2 12 12 17 22 12"></polyline>
           </svg>
         </div>
-        <h4 class="empty-state-title">No Projects Listed</h4>
+        <h4 class="empty-state-title">No Projects</h4>
         <p class="empty-state-desc">${escapeHTML(message)}</p>
       </div>
     `;
@@ -317,7 +331,7 @@ export function ProjectsView(navigate = null) {
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
         </div>
-        <h4 class="empty-state-title" style="color: var(--danger-red);">Error Loading Projects</h4>
+        <h4 class="empty-state-title" style="color: var(--danger-red);">Failed to Load</h4>
         <p class="empty-state-desc">${escapeHTML(message)}</p>
       </div>
     `;
@@ -366,7 +380,7 @@ export function ProjectsView(navigate = null) {
           team_members: container.querySelector("#pMembers").value.trim(),
           repo_url: container.querySelector("#pRepo").value.trim(),
           description: container.querySelector("#pDesc").value.trim(),
-          department: user.department || "CSE",
+          department: container.querySelector("#pDept").value.trim() || user.department || "CSE",
         };
 
         try {

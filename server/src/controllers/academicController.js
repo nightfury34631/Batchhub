@@ -3,7 +3,7 @@ import db from "../config/db.js";
 export const getBatchAcademicData = async (req, res) => {
   try {
     const userBatch = req.user.batch ? req.user.batch.trim().toLowerCase() : "";
-    console.log("Fetching academic data for normalized user batch:", userBatch);
+    const role = req.user.role;
 
     const [courses] = await db.execute(
       "SELECT * FROM semester_courses WHERE LOWER(TRIM(batch)) = ?",
@@ -15,12 +15,14 @@ export const getBatchAcademicData = async (req, res) => {
     );
 
     let pendingMaterials = [];
-    try {
-      const [materials] = await db.execute(
-        'SELECT m.*, u.name as uploader_name FROM materials m LEFT JOIN users u ON m.uploaded_by = u.id WHERE m.status = "pending"',
-      );
-      pendingMaterials = materials;
-    } catch (e) {}
+    if (role === "cr" || role === "admin") {
+      try {
+        const [materials] = await db.execute(
+          'SELECT m.*, u.name as uploader_name FROM materials m LEFT JOIN users u ON m.uploaded_by = u.id WHERE m.status = "pending"',
+        );
+        pendingMaterials = materials;
+      } catch (e) {}
+    }
 
     res.status(200).json({ success: true, courses, routine, pendingMaterials });
   } catch (error) {
@@ -35,6 +37,9 @@ export const addCourse = async (req, res) => {
       return res.status(403).json({ success: false, message: "Unauthorized." });
     }
     const { course_code, course_title, department, batch } = req.body;
+    if (!course_code || !course_title || !department || !batch) {
+      return res.status(400).json({ success: false, message: "All course fields are required." });
+    }
     await db.execute(
       "INSERT INTO semester_courses (course_code, course_title, department, batch) VALUES (?, ?, ?, ?)",
       [
@@ -58,6 +63,9 @@ export const addRoutine = async (req, res) => {
       return res.status(403).json({ success: false, message: "Unauthorized." });
     }
     const { batch, day_of_week, time_slot, course_name, room_no } = req.body;
+    if (!batch || !day_of_week || !time_slot || !course_name || !room_no) {
+      return res.status(400).json({ success: false, message: "All routine fields are required." });
+    }
     await db.execute(
       "INSERT INTO routines (batch, day_of_week, time_slot, course_name, room_no) VALUES (?, ?, ?, ?, ?)",
       [

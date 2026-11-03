@@ -6,6 +6,7 @@ export function TasksView(navigate = null) {
   container.className = "view-container";
 
   const user = JSON.parse(localStorage.getItem("user")) || {
+    id: 0,
     role: "student",
     department: "CSE",
   };
@@ -149,6 +150,9 @@ export function TasksView(navigate = null) {
       const card = document.createElement("div");
       card.className = "app-card";
 
+      const isCompleted = Number(task.is_completed) === 1;
+      const canDelete = isCRorAdmin || (user.id && task.created_by === user.id);
+
       const priorityBadge =
         task.priority === "High"
           ? "badge-danger"
@@ -161,10 +165,21 @@ export function TasksView(navigate = null) {
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <span class="app-badge badge-muted">${escapeHTML(task.course_code || "General")}</span>
             <span class="app-badge ${priorityBadge}">${escapeHTML(task.priority)} Priority</span>
+            ${isCompleted ? '<span class="app-badge badge-emerald">✓ Completed</span>' : ""}
           </div>
+          ${
+            canDelete
+              ? `<button class="delete-task-btn" title="Delete Task" data-id="${task.id}" style="background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: color 0.15s ease;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>`
+              : ""
+          }
         </div>
 
-        <h3 class="app-card-title">${escapeHTML(task.title)}</h3>
+        <h3 class="app-card-title" style="${isCompleted ? 'text-decoration: line-through; opacity: 0.75;' : ''}">${escapeHTML(task.title)}</h3>
 
         <div class="app-card-body">
           <p>${escapeHTML(task.description || "No specific instructions provided.")}</p>
@@ -179,30 +194,51 @@ export function TasksView(navigate = null) {
 
         <div class="app-card-footer">
           <span style="font-size: 12px; color: var(--text-dim);">By: ${escapeHTML(task.creator_name || "Faculty / CR")}</span>
-          <button class="btn-secondary btn-sm complete-task-btn" data-id="${task.id}" style="color: var(--primary-mint); border-color: var(--primary-mint-border);">
+          <button class="btn-secondary btn-sm toggle-complete-btn" data-id="${task.id}" style="${isCompleted ? 'color: var(--text-dim); border-color: var(--card-border);' : 'color: var(--primary-mint); border-color: var(--primary-mint-border);'}">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            <span>Mark Complete</span>
+            <span>${isCompleted ? "Completed ✓" : "Mark Complete"}</span>
           </button>
         </div>
       `;
 
-      // Mark complete action
-      const compBtn = card.querySelector(".complete-task-btn");
+      // Toggle Complete (Personal completion tracking)
+      const compBtn = card.querySelector(".toggle-complete-btn");
       if (compBtn) {
         compBtn.onclick = async () => {
+          try {
+            const token = localStorage.getItem("token");
+            if (isCompleted) {
+              const res = await api.delete(`/tasks/${task.id}/complete`, token);
+              showToast(res.message || "Task marked as active.", "info");
+            } else {
+              const res = await api.post(`/tasks/${task.id}/complete`, {}, token);
+              showToast(res.message || "Task marked as completed!", "success");
+            }
+            fetchTasks();
+          } catch (err) {
+            showToast(err.message, "error");
+          }
+        };
+      }
+
+      // Delete Task (Authorized creators & CR/Admins)
+      const delBtn = card.querySelector(".delete-task-btn");
+      if (delBtn) {
+        delBtn.onclick = async () => {
           const confirmed = await confirmDialog({
-            title: "Complete Task",
-            message: `Mark "${task.title}" as completed and remove it from your active deadlines?`,
-            confirmText: "Yes, Mark Complete",
+            title: "Delete Shared Task",
+            message: `Are you sure you want to permanently delete "${task.title}" for all students?`,
+            confirmText: "Yes, Delete Task",
+            isDanger: true,
           });
           if (!confirmed) return;
 
           try {
             const token = localStorage.getItem("token");
             const res = await api.delete(`/tasks/${task.id}`, token);
-            showToast(res.message || "Task marked as completed!", "success");
+            showToast(res.message || "Task deleted permanently.", "success");
             fetchTasks();
           } catch (err) {
             showToast(err.message, "error");

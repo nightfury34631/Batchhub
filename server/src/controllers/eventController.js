@@ -1,107 +1,143 @@
 import db from "../config/db.js";
 
-// Get all events that have not passed their due date
+// Get all approved active events (Pending events are strictly separated for CR/Admin review)
 export const getEvents = async (req, res) => {
   try {
     const role = req.user.role;
 
-    // Fetch approved or pending events where the event_date is greater than or equal to current time
+    // 1. Fetch strictly approved events for all users (No pending events in public feed)
     const [events] = await db.execute(
       `SELECT e.*, u.name as organizer_name 
-             FROM events e 
-             LEFT JOIN users u ON e.created_by = u.id 
-             WHERE e.status IN ('approved', 'pending') AND e.event_date >= NOW()
-             ORDER BY e.event_date ASC`,
+       FROM events e 
+       LEFT JOIN users u ON e.created_by = u.id 
+       WHERE e.status = 'approved' AND e.event_date >= NOW()
+       ORDER BY e.event_date ASC`
     );
 
-    // Fetch pending events specifically for CR/Admin review panel
+    // 2. Fetch pending events ONLY if user has 'cr' or 'admin' role
     let pendingEvents = [];
     if (role === "cr" || role === "admin") {
       const [pEvents] = await db.execute(
         `SELECT e.*, u.name as organizer_name 
-                 FROM events e 
-                 LEFT JOIN users u ON e.created_by = u.id 
-                 WHERE e.status = 'pending' AND e.event_date >= NOW()
-                 ORDER BY e.event_date ASC`,
+         FROM events e 
+         LEFT JOIN users u ON e.created_by = u.id 
+         WHERE e.status = 'pending' AND e.event_date >= NOW()
+         ORDER BY e.event_date ASC`
       );
       pendingEvents = pEvents;
     }
 
     res.status(200).json({ success: true, events, pendingEvents });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("Get Events Error:", error.message);
+    res.status(500).json({ success: false, message: "Failed to retrieve events." });
   }
 };
 
+// Create Event (Students require CR approval, CRs/Admins auto-approved)
 export const createEvent = async (req, res) => {
   try {
     const { title, description, event_date, location, department } = req.body;
     const userId = req.user.id;
     const role = req.user.role;
 
+    if (!title || typeof title !== "string" || title.trim() === "") {
+      return res.status(400).json({ success: false, message: "Event title is required." });
+    }
+
+    if (!event_date) {
+      return res.status(400).json({ success: false, message: "Event date and time are required." });
+    }
+
+    if (!location || typeof location !== "string" || location.trim() === "") {
+      return res.status(400).json({ success: false, message: "Event location is required." });
+    }
+
+    // Role-governed initial status: client cannot pick 'approved'
     const status = role === "cr" || role === "admin" ? "approved" : "pending";
     const msg =
       status === "approved"
         ? "Event published successfully!"
-        : "Event submitted for CR approval!";
+        : "Event submitted successfully! Awaiting CR approval.";
 
-    await db.execute(
-      "INSERT INTO events (title, description, event_date, location, department, created_by, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    const [result] = await db.execute(
+      `INSERT INTO events (title, description, event_date, location, department, created_by, status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         title.trim(),
-        description.trim(),
+        description ? description.trim() : "",
         event_date,
         location.trim(),
         department ? department.trim() : "CSE",
         userId,
         status,
-      ],
+      ]
     );
 
-    res.status(201).json({ success: true, message: msg });
+    res.status(201).json({ success: true, message: msg, eventId: result.insertId });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("Create Event Error:", error.message);
+    res.status(500).json({ success: false, message: "Failed to create event." });
   }
 };
 
 // CR / Admin: Approve Event
 export const approveEvent = async (req, res) => {
   try {
-    if (req.user.role !== "cr" && req.user.role !== "admin") {
-      return res.status(403).json({ success: false, message: "Unauthorized." });
+    const { eventId } = req.params;
+
+    const [events] = await db.execute("SELECT id, status, title FROM events WHERE id = ?", [eventId]);
+    if (events.length === 0) {
+      return res.status(404).json({ success: false, message: "Event not found." });
     }
 
-    const { eventId } = req.params;
-    await db.execute('UPDATE events SET status = "approved" WHERE id = ?', [
-      eventId,
-    ]);
-
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Event approved and published successfully!",
+    const event = events[0];
+    if (event.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: `Event is already ${event.status}. Only pending events can be approved.`,
       });
+    }
+
+    await db.execute('UPDATE events SET status = "approved" WHERE id = ?', [eventId]);
+
+    res.status(200).json({
+      success: true,
+      message: `Event "${event.title}" approved and published successfully!`,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("Approve Event Error:", error.message);
+    res.status(500).json({ success: false, message: "Failed to approve event." });
   }
 };
 
-// CR / Admin: Reject Event (Deletes or marks as rejected)
+// CR / Admin: Reject Event (Preserves audit trail with status = 'rejected')
 export const rejectEvent = async (req, res) => {
   try {
-    if (req.user.role !== "cr" && req.user.role !== "admin") {
-      return res.status(403).json({ success: false, message: "Unauthorized." });
+    const { eventId } = req.params;
+
+    const [events] = await db.execute("SELECT id, status, title FROM events WHERE id = ?", [eventId]);
+    if (events.length === 0) {
+      return res.status(404).json({ success: false, message: "Event not found." });
     }
 
-    const { eventId } = req.params;
-    // Option A: Delete rejected event entirely
-    await db.execute("DELETE FROM events WHERE id = ?", [eventId]);
+    const event = events[0];
+    if (event.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: `Event is already ${event.status}. Only pending events can be rejected.`,
+      });
+    }
 
-    res
-      .status(200)
-      .json({ success: true, message: "Event rejected and removed." });
+    // Preserve audit trail: set status to 'rejected' instead of destructive deletion
+    await db.execute('UPDATE events SET status = "rejected" WHERE id = ?', [eventId]);
+
+    res.status(200).json({
+      success: true,
+      message: `Event "${event.title}" rejected and recorded.`,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("Reject Event Error:", error.message);
+    res.status(500).json({ success: false, message: "Failed to reject event." });
   }
 };

@@ -52,19 +52,9 @@ export function RegisterView(navigate) {
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Department *</label>
-            <input type="text" id="regDept" class="form-input" value="CSE" placeholder="e.g. CSE" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Account Role *</label>
-            <select id="regRole" class="form-select">
-              <option value="student">Student Member</option>
-              <option value="cr">Class Representative (CR)</option>
-              <option value="admin">Administrator</option>
-            </select>
-          </div>
+        <div class="form-group">
+          <label class="form-label">Department *</label>
+          <input type="text" id="regDept" class="form-input" value="CSE" placeholder="e.g. CSE" required>
         </div>
 
         <button type="submit" id="btnRegisterSubmit" class="btn-primary" style="width: 100%; justify-content: center; padding: 12px; margin-top: 10px;">
@@ -119,7 +109,6 @@ export function RegisterView(navigate) {
           student_id: container.querySelector("#regStudentId").value.trim(),
           batch: container.querySelector("#regBatch").value.trim(),
           department: container.querySelector("#regDept").value.trim(),
-          role: container.querySelector("#regRole").value,
         };
 
         if (alertBox) {
