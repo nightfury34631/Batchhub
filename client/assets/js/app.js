@@ -5,7 +5,7 @@ import { AnnouncementsView } from "../../views/announcementsView.js";
 import { EventsView } from "../../views/eventsView.js";
 import { MembersView } from "../../views/membersView.js";
 import { ResourcesView } from "../../views/resourcesView.js";
-import { TasksView } from "../../views/tasksView.js";
+import { TasksView } from "../../views/tasksView.js?v=2";
 import { ProjectsView } from "../../views/projectsView.js";
 import { ProfileView } from "../../views/profileView.js";
 import { CRPanelView } from "../../views/crPanelView.js";

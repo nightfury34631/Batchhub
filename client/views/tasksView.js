@@ -27,14 +27,14 @@ export function TasksView(navigate = null) {
 
   // View Skeleton
   container.innerHTML = `
-    <!-- 1. Header -->
-    <div class="tasks-header">
+    <!-- 1. Page Header -->
+    <header class="tasks-header">
       <div class="tasks-title-group">
         <h2>Tasks, Assignments & Deadlines</h2>
-        <p>Centralized academic deadlines, lab report submissions, and batch milestone tracking.</p>
+        <p>Keep track of academic assignments, lab report submissions, and batch milestone deadlines.</p>
       </div>
-      <div class="view-actions">
-        <button class="btn-primary" id="btnOpenAddTaskModal" aria-haspopup="dialog" aria-controls="addTaskModal">
+      <div class="tasks-header-action">
+        <button class="btn-add-task" id="btnOpenAddTaskModal" aria-haspopup="dialog" aria-controls="addTaskModal">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -42,50 +42,57 @@ export function TasksView(navigate = null) {
           <span>Add Academic Deadline</span>
         </button>
       </div>
-    </div>
+    </header>
 
-    <!-- 2. Workload Flight Deck Summary -->
-    <div class="task-workload-bar" id="taskWorkloadBar" role="region" aria-label="Workload Summary">
-      <div class="workload-chip chip-overdue" data-filter="overdue" tabindex="0" role="button" aria-label="Filter overdue tasks">
-        <div class="workload-chip-content">
-          <span class="workload-chip-label">Overdue</span>
-          <span class="workload-chip-count" id="countOverdue">0</span>
+    <!-- 2. Workload Flight Deck (Overview Metrics) -->
+    <section class="task-workload-grid" id="taskWorkloadBar" role="region" aria-label="Workload Overview">
+      <div class="task-workload-card card-overdue" data-filter="overdue" tabindex="0" role="button" aria-label="Filter overdue tasks">
+        <div class="task-workload-meta">
+          <span class="task-workload-label">Overdue</span>
+          <span class="task-workload-value" id="countOverdue">0</span>
+          <span class="task-workload-subline">Requires attention</span>
         </div>
-        <div class="workload-chip-icon" aria-hidden="true">⚠️</div>
+        <div class="task-workload-icon-box" aria-hidden="true">⚠️</div>
       </div>
-      <div class="workload-chip chip-today" data-filter="today" tabindex="0" role="button" aria-label="Filter tasks due today">
-        <div class="workload-chip-content">
-          <span class="workload-chip-label">Due Today</span>
-          <span class="workload-chip-count" id="countToday">0</span>
-        </div>
-        <div class="workload-chip-icon" aria-hidden="true">⏰</div>
-      </div>
-      <div class="workload-chip chip-active" data-filter="active" tabindex="0" role="button" aria-label="Filter active tasks">
-        <div class="workload-chip-content">
-          <span class="workload-chip-label">Active Tasks</span>
-          <span class="workload-chip-count" id="countActive">0</span>
-        </div>
-        <div class="workload-chip-icon" aria-hidden="true">📋</div>
-      </div>
-      <div class="workload-chip chip-completed" data-filter="completed" tabindex="0" role="button" aria-label="Filter completed tasks">
-        <div class="workload-chip-content">
-          <span class="workload-chip-label">Completed</span>
-          <span class="workload-chip-count" id="countCompleted">0</span>
-        </div>
-        <div class="workload-chip-icon" aria-hidden="true">✓</div>
-      </div>
-    </div>
 
-    <!-- 3. Pending Moderation Queue (CR / Admin Only) -->
-    <div id="crModerationSection" style="display: none;"></div>
+      <div class="task-workload-card card-today" data-filter="today" tabindex="0" role="button" aria-label="Filter tasks due today">
+        <div class="task-workload-meta">
+          <span class="task-workload-label">Due Today</span>
+          <span class="task-workload-value" id="countToday">0</span>
+          <span class="task-workload-subline">Due by 11:59 PM</span>
+        </div>
+        <div class="task-workload-icon-box" aria-hidden="true">⏰</div>
+      </div>
 
-    <!-- 4. Student Pending Submissions Banner (When student has pending tasks) -->
-    <div id="studentPendingSection" style="display: none;"></div>
+      <div class="task-workload-card card-active" data-filter="active" tabindex="0" role="button" aria-label="Filter active tasks">
+        <div class="task-workload-meta">
+          <span class="task-workload-label">Active Tasks</span>
+          <span class="task-workload-value" id="countActive">0</span>
+          <span class="task-workload-subline">Pending assignments</span>
+        </div>
+        <div class="task-workload-icon-box" aria-hidden="true">📋</div>
+      </div>
+
+      <div class="task-workload-card card-completed" data-filter="completed" tabindex="0" role="button" aria-label="Filter completed tasks">
+        <div class="task-workload-meta">
+          <span class="task-workload-label">Completed</span>
+          <span class="task-workload-value" id="countCompleted">0</span>
+          <span class="task-workload-subline">Marked done by you</span>
+        </div>
+        <div class="task-workload-icon-box" aria-hidden="true">✓</div>
+      </div>
+    </section>
+
+    <!-- 3. CR / Admin Moderation Queue Section -->
+    <section id="crModerationSection" style="display: none;"></section>
+
+    <!-- 4. Student Pending Submissions Banner Section -->
+    <section id="studentPendingSection" style="display: none;"></section>
 
     <!-- 5. Search, Filter & Sort Toolbar -->
-    <div class="task-toolbar-wrapper">
-      <div class="task-toolbar-top">
-        <div class="task-search-field">
+    <div class="tasks-toolbar">
+      <div class="tasks-toolbar-top-row">
+        <div class="tasks-search-container">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--text-dim); flex-shrink: 0;" aria-hidden="true">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -93,25 +100,25 @@ export function TasksView(navigate = null) {
           <input type="text" id="taskSearchInput" placeholder="Search tasks by title, course, or instructions..." aria-label="Search academic tasks">
         </div>
 
-        <div class="task-filter-tabs" id="taskFilterTabs" role="tablist" aria-label="Task Status Filters">
-          <button class="task-tab-btn active" data-filter="all" role="tab" aria-selected="true">All Deadlines</button>
-          <button class="task-tab-btn" data-filter="active" role="tab" aria-selected="false">Active</button>
-          <button class="task-tab-btn" data-filter="completed" role="tab" aria-selected="false">Completed</button>
-          <button class="task-tab-btn" data-filter="overdue" role="tab" aria-selected="false">Overdue</button>
-          ${isCRorAdmin ? `<button class="task-tab-btn" data-filter="pending_mod" role="tab" aria-selected="false">Moderation Queue <span id="tabModBadge" class="moderation-count-pill" style="display: none;">0</span></button>` : ""}
-          <button class="task-tab-btn" data-filter="my_pending" id="tabMyPending" role="tab" aria-selected="false" style="display: none;">My Pending (<span id="tabMyPendingCount">0</span>)</button>
+        <div class="tasks-tab-group" id="taskFilterTabs" role="tablist" aria-label="Task Status Filters">
+          <button class="tasks-tab-item active-tab" data-filter="all" role="tab" aria-selected="true">All Deadlines</button>
+          <button class="tasks-tab-item" data-filter="active" role="tab" aria-selected="false">Active</button>
+          <button class="tasks-tab-item" data-filter="completed" role="tab" aria-selected="false">Completed</button>
+          <button class="tasks-tab-item" data-filter="overdue" role="tab" aria-selected="false">Overdue</button>
+          ${isCRorAdmin ? `<button class="tasks-tab-item" data-filter="pending_mod" role="tab" aria-selected="false">Moderation Queue <span id="tabModBadge" class="moderation-badge" style="display: none;">0</span></button>` : ""}
+          <button class="tasks-tab-item" data-filter="my_pending" id="tabMyPending" role="tab" aria-selected="false" style="display: none;">My Pending (<span id="tabMyPendingCount">0</span>)</button>
         </div>
       </div>
 
-      <div class="task-toolbar-bottom">
-        <div class="task-dropdown-group">
-          <label for="filterCourseSelect" style="font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Course:</label>
-          <select id="filterCourseSelect" class="task-select-control" aria-label="Filter by Course">
+      <div class="tasks-toolbar-bottom-row">
+        <div class="tasks-filter-selects">
+          <label for="filterCourseSelect">Course:</label>
+          <select id="filterCourseSelect" class="task-select-input" aria-label="Filter by Course">
             <option value="all">All Courses</option>
           </select>
 
-          <label for="filterPrioritySelect" style="font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Priority:</label>
-          <select id="filterPrioritySelect" class="task-select-control" aria-label="Filter by Priority">
+          <label for="filterPrioritySelect">Priority:</label>
+          <select id="filterPrioritySelect" class="task-select-input" aria-label="Filter by Priority">
             <option value="all">All Priorities</option>
             <option value="High">High Priority</option>
             <option value="Medium">Medium Priority</option>
@@ -119,9 +126,9 @@ export function TasksView(navigate = null) {
           </select>
         </div>
 
-        <div class="task-sort-control">
-          <label for="sortTasksSelect" style="font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Sort by:</label>
-          <select id="sortTasksSelect" class="task-select-control" aria-label="Sort tasks">
+        <div class="tasks-sort-group">
+          <label for="sortTasksSelect">Sort by:</label>
+          <select id="sortTasksSelect" class="task-select-input" aria-label="Sort tasks">
             <option value="due_asc">Nearest Due Date (First)</option>
             <option value="due_desc">Furthest Due Date</option>
             <option value="priority_desc">Priority (High to Low)</option>
@@ -133,17 +140,17 @@ export function TasksView(navigate = null) {
     </div>
 
     <!-- 6. Tasks Grid Container -->
-    <div id="tasksGrid" class="tasks-grid" role="region" aria-live="polite" aria-label="Tasks list">
-      <div class="skeleton-card" style="height: 180px;"></div>
-      <div class="skeleton-card" style="height: 180px;"></div>
-      <div class="skeleton-card" style="height: 180px;"></div>
-    </div>
+    <main id="tasksGrid" class="tasks-cards-grid" role="region" aria-live="polite" aria-label="Tasks list">
+      <div class="tasks-skeleton-card"></div>
+      <div class="tasks-skeleton-card"></div>
+      <div class="tasks-skeleton-card"></div>
+    </main>
 
     <!-- 7. Add Task Modal -->
     <div id="addTaskModal" class="app-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="addTaskModalHeading" aria-hidden="true">
       <div class="app-modal-dialog" style="max-width: 540px;">
         <div class="app-modal-header task-modal-header">
-          <h3 id="addTaskModalHeading">Add Academic Task / Deadline</h3>
+          <h3 id="addTaskModalHeading" class="task-modal-heading-text">Add Academic Task / Deadline</h3>
           <button class="app-modal-close" id="closeTaskModalBtn" aria-label="Close dialog">✕</button>
         </div>
         <form id="addTaskForm">
@@ -192,19 +199,19 @@ export function TasksView(navigate = null) {
       <div class="app-modal-dialog" style="max-width: 580px;">
         <div class="app-modal-header task-modal-header">
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <span id="detailTaskCourseEyebrow" class="task-course-eyebrow">CSE-3201</span>
-            <div id="detailTaskPriorityIndicator" class="task-priority-indicator">
-              <span class="task-priority-pip pip-medium"></span>
+            <span id="detailTaskCourseEyebrow" class="task-course-tag">CSE-3201</span>
+            <div id="detailTaskPriorityIndicator" class="task-priority-pip-group">
+              <span class="priority-pip pip-medium"></span>
               <span id="detailTaskPriorityText">Medium Priority</span>
             </div>
-            <span id="detailTaskDeadlineBadge" class="task-deadline-badge badge-active">Active</span>
+            <span id="detailTaskDeadlineBadge" class="task-status-pill pill-active">Active</span>
           </div>
           <button class="app-modal-close" id="closeTaskDetailBtn" aria-label="Close details dialog">✕</button>
         </div>
         <div class="app-modal-body" style="display: flex; flex-direction: column; gap: 14px;">
-          <h2 id="detailTaskTitle" class="task-detail-title"></h2>
+          <h2 id="detailTaskTitle" class="task-modal-heading-text"></h2>
 
-          <div class="task-detail-meta-box">
+          <div class="task-detail-modal-meta">
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="color: var(--primary-mint);">⏰</span>
               <div><strong>Submission Due:</strong> <span id="detailTaskDue"></span></div>
@@ -217,12 +224,11 @@ export function TasksView(navigate = null) {
 
           <div>
             <span style="font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-muted); display: block; margin-bottom: 6px;">Instructions & Problem Details</span>
-            <div id="detailTaskInstructions" class="task-detail-instructions"></div>
+            <div id="detailTaskInstructions" class="task-detail-instructions-block"></div>
           </div>
         </div>
         <div class="app-modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
           <div id="detailModalActionLeft">
-            <!-- Complete button inside modal -->
             <button type="button" class="btn-secondary" id="btnModalToggleComplete">
               <span id="modalCompleteBtnLabel">Mark as Completed</span>
             </button>
@@ -249,25 +255,25 @@ export function TasksView(navigate = null) {
   let activeDetailTask = null;
   let lastActiveElement = null;
 
-  // Helpers
+  // Deadline calculation
   function getDeadlineInfo(dueDateStr, isCompleted) {
     if (isCompleted) {
-      return { label: "✓ Completed", className: "badge-completed", isCompleted: true, isOverdue: false, isToday: false };
+      return { label: "✓ Completed", className: "pill-completed", isCompleted: true, isOverdue: false, isToday: false };
     }
     const dueTime = new Date(dueDateStr).getTime();
     const now = Date.now();
     const diffHours = (dueTime - now) / (1000 * 3600);
 
     if (diffHours < 0) {
-      return { label: "⚠️ Overdue", className: "badge-overdue", isCompleted: false, isOverdue: true, isToday: false };
+      return { label: "⚠️ Overdue", className: "pill-overdue", isCompleted: false, isOverdue: true, isToday: false };
     } else if (diffHours <= 24) {
-      return { label: "⏰ Due Today", className: "badge-today", isCompleted: false, isOverdue: false, isToday: true };
+      return { label: "⏰ Due Today", className: "pill-today", isCompleted: false, isOverdue: false, isToday: true };
     } else if (diffHours <= 72) {
       const days = Math.ceil(diffHours / 24);
-      return { label: `⏳ Due in ${days}d`, className: "badge-soon", isCompleted: false, isOverdue: false, isToday: false };
+      return { label: `⏳ Due in ${days}d`, className: "pill-soon", isCompleted: false, isOverdue: false, isToday: false };
     }
     const diffDays = Math.ceil(diffHours / 24);
-    return { label: `In ${diffDays} days`, className: "badge-active", isCompleted: false, isOverdue: false, isToday: false };
+    return { label: `In ${diffDays} days`, className: "pill-active", isCompleted: false, isOverdue: false, isToday: false };
   }
 
   function getPriorityMeta(priority) {
@@ -323,7 +329,6 @@ export function TasksView(navigate = null) {
         api.get("/academic", token),
       ]);
 
-      // Process courses from academic endpoint
       if (academicRes.status === "fulfilled" && academicRes.value?.courses) {
         academicRes.value.courses.forEach((c) => {
           if (c.course_code) availableCourses.add(c.course_code.toUpperCase().trim());
@@ -335,7 +340,6 @@ export function TasksView(navigate = null) {
         pendingModerationTasks = taskRes.value.pendingTasks || [];
         myPendingTasks = taskRes.value.myPendingTasks || [];
 
-        // Collect courses from task records
         allTasks.forEach((t) => {
           if (t.course_code) availableCourses.add(t.course_code.toUpperCase().trim());
         });
@@ -409,7 +413,7 @@ export function TasksView(navigate = null) {
     }
   }
 
-  // Render CR / Admin Moderation Section
+  // Render CR / Admin Moderation Queue
   function renderPendingModerationSection() {
     const section = container.querySelector("#crModerationSection");
     if (!section) return;
@@ -420,44 +424,43 @@ export function TasksView(navigate = null) {
       return;
     }
 
-    // If current filter is "pending_mod", or if pending tasks exist, render queue
     section.style.display = "block";
     section.innerHTML = `
-      <div class="moderation-queue-container" role="region" aria-label="Class Representative Moderation Queue">
-        <div class="moderation-queue-header">
-          <div class="moderation-header-title">
+      <div class="moderation-section" role="region" aria-label="Class Representative Moderation Queue">
+        <div class="moderation-header-row">
+          <div class="moderation-title-group">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--warning-orange);" aria-hidden="true">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
             </svg>
             <h3>Class Representative Moderation Queue</h3>
-            <span class="moderation-count-pill">${pendingModerationTasks.length} Pending Approval</span>
+            <span class="moderation-badge">${pendingModerationTasks.length} Pending Approval</span>
           </div>
-          <span style="font-size: 11.5px; color: var(--text-muted);">Student contributions are gated to protect cohort signal quality.</span>
+          <span class="moderation-subtext">Review cohort student submissions to maintain quality.</span>
         </div>
 
-        <div class="moderation-grid">
+        <div class="moderation-cards-grid">
           ${pendingModerationTasks.map((task) => {
             const pMeta = getPriorityMeta(task.priority);
             return `
-              <div class="moderation-card" data-task-id="${task.id}">
-                <div class="moderation-card-top">
-                  <span class="task-course-eyebrow">${escapeHTML(task.course_code || "General")}</span>
-                  <div class="task-priority-indicator">
-                    <span class="task-priority-pip ${pMeta.pipClass}"></span>
+              <div class="moderation-item-card" data-task-id="${task.id}">
+                <div class="moderation-item-top">
+                  <span class="task-course-tag">${escapeHTML(task.course_code || "General")}</span>
+                  <div class="task-priority-pip-group">
+                    <span class="priority-pip ${pMeta.pipClass}"></span>
                     <span>${escapeHTML(task.priority)}</span>
                   </div>
                 </div>
-                <h4 class="moderation-card-title">${escapeHTML(task.title)}</h4>
-                <div class="moderation-card-meta">
+                <h4 class="moderation-item-title">${escapeHTML(task.title)}</h4>
+                <div class="moderation-item-details">
                   <div><strong>Due:</strong> ${formatDate(task.due_date)} at ${formatTime(task.due_date)}</div>
                   <div><strong>Submitted by:</strong> ${escapeHTML(task.creator_name || "Student")} ${task.creator_student_id ? `(${escapeHTML(task.creator_student_id)})` : ""}</div>
                   ${task.description ? `<p style="margin-top: 4px; color: var(--text-secondary); line-height: 1.4;">${escapeHTML(task.description)}</p>` : ""}
                 </div>
-                <div class="moderation-card-actions">
-                  <button class="btn-mod-approve" data-id="${task.id}" aria-label="Approve task ${escapeHTML(task.title)}">
+                <div class="moderation-item-actions">
+                  <button class="btn-approve-action" data-id="${task.id}" aria-label="Approve task ${escapeHTML(task.title)}">
                     ✓ Approve Deadline
                   </button>
-                  <button class="btn-mod-reject" data-id="${task.id}" aria-label="Decline task ${escapeHTML(task.title)}">
+                  <button class="btn-decline-action" data-id="${task.id}" aria-label="Decline task ${escapeHTML(task.title)}">
                     ✕ Decline
                   </button>
                 </div>
@@ -469,7 +472,7 @@ export function TasksView(navigate = null) {
     `;
 
     // Bind Approve Actions
-    section.querySelectorAll(".btn-mod-approve").forEach((btn) => {
+    section.querySelectorAll(".btn-approve-action").forEach((btn) => {
       btn.onclick = async (e) => {
         e.stopPropagation();
         const taskId = btn.getAttribute("data-id");
@@ -488,8 +491,8 @@ export function TasksView(navigate = null) {
       };
     });
 
-    // Bind Reject Actions
-    section.querySelectorAll(".btn-mod-reject").forEach((btn) => {
+    // Bind Decline Actions
+    section.querySelectorAll(".btn-decline-action").forEach((btn) => {
       btn.onclick = async (e) => {
         e.stopPropagation();
         const taskId = btn.getAttribute("data-id");
@@ -530,8 +533,8 @@ export function TasksView(navigate = null) {
 
     section.style.display = "block";
     section.innerHTML = `
-      <div class="student-pending-banner" role="region" aria-label="My Submissions Awaiting Approval">
-        <div class="student-pending-header">
+      <div class="student-pending-section" role="region" aria-label="My Submissions Awaiting Approval">
+        <div class="student-pending-header-row">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="12" cy="12" r="10"></circle>
             <polyline points="12 6 12 12 16 14"></polyline>
@@ -539,18 +542,18 @@ export function TasksView(navigate = null) {
           <span>Your Submitted Tasks Awaiting Class Representative Review (${myPendingTasks.length})</span>
         </div>
         <p style="font-size: 11.5px; color: var(--text-muted); margin: 0;">
-          Your submissions are pending review by a batch representative. Once approved, they will automatically appear on the shared batch deadline list.
+          Your submissions are under review by a batch representative. Once approved, they will appear on the shared batch deadline calendar.
         </p>
-        <div class="student-pending-list">
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
           ${myPendingTasks.map((task) => `
-            <div class="student-pending-item">
-              <div class="student-pending-info">
-                <span class="task-course-eyebrow">${escapeHTML(task.course_code || "General")}</span>
-                <span class="student-pending-title">${escapeHTML(task.title)}</span>
-                <span class="student-pending-tag">Due: ${formatDate(task.due_date)}</span>
+            <div class="student-pending-item-box">
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span class="task-course-tag">${escapeHTML(task.course_code || "General")}</span>
+                <span style="font-size: 13.5px; font-weight: 600; color: var(--text-primary);">${escapeHTML(task.title)}</span>
+                <span style="font-size: 11.5px; color: var(--text-dim);">Due: ${formatDate(task.due_date)}</span>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="task-deadline-badge badge-soon">⏳ Awaiting CR Review</span>
+                <span class="task-status-pill pill-soon">⏳ Awaiting CR Review</span>
                 <button class="btn-sm btn-secondary btn-withdraw-task" data-id="${task.id}" title="Withdraw submission" style="font-size: 11.5px; padding: 4px 8px;">
                   Withdraw
                 </button>
@@ -589,7 +592,6 @@ export function TasksView(navigate = null) {
   function getFilteredAndSortedTasks() {
     const now = Date.now();
 
-    // 1. Filter
     const filtered = allTasks.filter((task) => {
       const isCompleted = Number(task.is_completed) === 1;
       const dueTime = new Date(task.due_date).getTime();
@@ -603,7 +605,7 @@ export function TasksView(navigate = null) {
       else if (currentFilter === "completed") matchStatus = isCompleted;
       else if (currentFilter === "overdue") matchStatus = isOverdue;
       else if (currentFilter === "today") matchStatus = isToday;
-      else if (currentFilter === "pending_mod" || currentFilter === "my_pending") return false; // Handled separately
+      else if (currentFilter === "pending_mod" || currentFilter === "my_pending") return false;
 
       // Secondary Course Filter
       let matchCourse = true;
@@ -631,7 +633,7 @@ export function TasksView(navigate = null) {
       return matchStatus && matchCourse && matchPriority && matchSearch;
     });
 
-    // 2. Sort
+    // Sorting
     filtered.sort((a, b) => {
       const timeA = new Date(a.due_date).getTime();
       const timeB = new Date(b.due_date).getTime();
@@ -669,7 +671,7 @@ export function TasksView(navigate = null) {
     if (!grid) return;
     grid.innerHTML = "";
 
-    // If "pending_mod" tab is selected, scroll to moderation queue
+    // If "pending_mod" tab is selected
     if (currentFilter === "pending_mod") {
       if (pendingModerationTasks.length === 0) {
         renderEmpty("The Class Representative moderation queue is completely clear! No tasks awaiting review.");
@@ -707,50 +709,53 @@ export function TasksView(navigate = null) {
       const pMeta = getPriorityMeta(task.priority);
 
       const card = document.createElement("article");
-      card.className = "task-card-item";
-      card.setAttribute("data-priority", task.priority || "Medium");
+      card.className = "task-item-card";
       card.setAttribute("tabindex", "0");
       card.setAttribute("role", "article");
       card.setAttribute("aria-label", `${task.title}, Course ${task.course_code || "General"}, ${deadline.label}`);
 
       card.innerHTML = `
-        <div class="task-card-header">
-          <span class="task-course-eyebrow">${escapeHTML(task.course_code || "General")}</span>
-          <span class="task-deadline-badge ${deadline.className}">${escapeHTML(deadline.label)}</span>
-        </div>
-
-        <div>
-          <h3 class="task-card-title ${isCompleted ? "completed-title" : ""}">${escapeHTML(task.title)}</h3>
-          <div class="task-priority-indicator" style="margin-top: 4px;">
-            <span class="task-priority-pip ${pMeta.pipClass}"></span>
+        <div class="task-card-eyebrow-row">
+          <span class="task-course-tag">${escapeHTML(task.course_code || "General")}</span>
+          <div class="task-priority-pip-group">
+            <span class="priority-pip ${pMeta.pipClass}"></span>
             <span>${escapeHTML(pMeta.label)}</span>
           </div>
         </div>
 
-        <div class="task-card-desc">
+        <div>
+          <h3 class="task-card-title-text ${isCompleted ? "is-strikethrough" : ""}">${escapeHTML(task.title)}</h3>
+        </div>
+
+        <p class="task-card-desc-preview">
           ${escapeHTML(task.description || "No specific instructions provided.")}
+        </p>
+
+        <div class="task-card-deadline-strip">
+          <div class="deadline-time-text">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>${formatDate(task.due_date)} · ${formatTime(task.due_date)}</span>
+          </div>
+          <span class="task-status-pill ${deadline.className}">${escapeHTML(deadline.label)}</span>
         </div>
 
-        <div class="task-card-due-box">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-          <span><strong>Due:</strong> ${formatDate(task.due_date)} at ${formatTime(task.due_date)}</span>
-        </div>
-
-        <div class="task-card-footer">
-          <span class="task-creator-attribution">By: ${escapeHTML(task.creator_name || "Batch Member")}</span>
-          <div class="task-card-actions">
-            <button class="task-btn-toggle-complete ${isCompleted ? "is-done" : ""}" data-id="${task.id}" aria-label="${isCompleted ? "Mark task as incomplete" : "Mark task as complete"}">
+        <div class="task-card-footer-row">
+          <span class="task-creator-credit" title="Submitted by ${escapeHTML(task.creator_name || "Batch Member")}">
+            By: ${escapeHTML(task.creator_name || "Batch Member")}
+          </span>
+          <div class="task-card-btn-group">
+            <button class="btn-toggle-done ${isCompleted ? "is-completed-state" : ""}" data-id="${task.id}" aria-label="${isCompleted ? "Mark task as incomplete" : "Mark task as complete"}">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
-              <span>${isCompleted ? "Completed ✓" : "Mark Complete"}</span>
+              <span>${isCompleted ? "Done ✓" : "Mark Complete"}</span>
             </button>
 
             ${canDelete ? `
-              <button class="task-btn-delete" data-id="${task.id}" title="Delete Task" aria-label="Delete task ${escapeHTML(task.title)}">
+              <button class="btn-card-delete" data-id="${task.id}" title="Delete Task" aria-label="Delete task ${escapeHTML(task.title)}">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <polyline points="3 6 5 6 21 6"></polyline>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -761,22 +766,20 @@ export function TasksView(navigate = null) {
         </div>
       `;
 
-      // Open detail modal on click or Enter/Space
       card.onclick = (e) => {
-        if (e.target.closest(".task-btn-toggle-complete") || e.target.closest(".task-btn-delete")) return;
+        if (e.target.closest(".btn-toggle-done") || e.target.closest(".btn-card-delete")) return;
         openTaskDetailModal(task, deadline, pMeta, card);
       };
 
       card.onkeydown = (e) => {
         if (e.key === "Enter" || e.key === " ") {
-          if (e.target.closest(".task-btn-toggle-complete") || e.target.closest(".task-btn-delete")) return;
+          if (e.target.closest(".btn-toggle-done") || e.target.closest(".btn-card-delete")) return;
           e.preventDefault();
           openTaskDetailModal(task, deadline, pMeta, card);
         }
       };
 
-      // Toggle Complete
-      const compBtn = card.querySelector(".task-btn-toggle-complete");
+      const compBtn = card.querySelector(".btn-toggle-done");
       if (compBtn) {
         compBtn.onclick = async (e) => {
           e.stopPropagation();
@@ -784,8 +787,7 @@ export function TasksView(navigate = null) {
         };
       }
 
-      // Delete Task
-      const delBtn = card.querySelector(".task-btn-delete");
+      const delBtn = card.querySelector(".btn-card-delete");
       if (delBtn) {
         delBtn.onclick = async (e) => {
           e.stopPropagation();
@@ -848,18 +850,17 @@ export function TasksView(navigate = null) {
     container.querySelector("#detailTaskCourseEyebrow").textContent = task.course_code || "General";
     container.querySelector("#detailTaskPriorityText").textContent = pMeta.label;
     
-    const pip = container.querySelector("#detailTaskPriorityIndicator .task-priority-pip");
-    if (pip) pip.className = `task-priority-pip ${pMeta.pipClass}`;
+    const pip = container.querySelector("#detailTaskPriorityIndicator .priority-pip");
+    if (pip) pip.className = `priority-pip ${pMeta.pipClass}`;
 
     const badge = container.querySelector("#detailTaskDeadlineBadge");
     badge.textContent = deadline.label;
-    badge.className = `task-deadline-badge ${deadline.className}`;
+    badge.className = `task-status-pill ${deadline.className}`;
 
     container.querySelector("#detailTaskDue").textContent = `${formatDate(task.due_date)} at ${formatTime(task.due_date)}`;
     container.querySelector("#detailTaskCreator").textContent = task.creator_name || "Batch Member";
     container.querySelector("#detailTaskInstructions").textContent = task.description || "No specific problem set or guidelines provided.";
 
-    // Modal Complete toggle button
     const modalCompBtn = container.querySelector("#btnModalToggleComplete");
     const modalCompLabel = container.querySelector("#modalCompleteBtnLabel");
     if (modalCompBtn && modalCompLabel) {
@@ -870,7 +871,6 @@ export function TasksView(navigate = null) {
       };
     }
 
-    // Modal Delete button
     const modalDelBtn = container.querySelector("#btnModalDeleteTask");
     if (modalDelBtn) {
       modalDelBtn.style.display = canDelete ? "inline-block" : "none";
@@ -883,7 +883,6 @@ export function TasksView(navigate = null) {
     modal.classList.add("app-modal-open");
     modal.setAttribute("aria-hidden", "false");
 
-    // Focus close button
     const closeBtn = container.querySelector("#closeTaskDetailBtn");
     if (closeBtn) closeBtn.focus();
   }
@@ -903,15 +902,15 @@ export function TasksView(navigate = null) {
     const grid = container.querySelector("#tasksGrid");
     if (!grid) return;
     grid.innerHTML = `
-      <div class="empty-state-box" style="grid-column: 1 / -1;">
-        <div class="empty-state-icon">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <div class="tasks-empty-card">
+        <div class="tasks-empty-icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="9 11 12 14 22 4"></polyline>
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
           </svg>
         </div>
-        <h4 class="empty-state-title">No Deadlines Found</h4>
-        <p class="empty-state-desc">${escapeHTML(message)}</p>
+        <h4 class="tasks-empty-title">No Deadlines Found</h4>
+        <p class="tasks-empty-desc">${escapeHTML(message)}</p>
       </div>
     `;
   }
@@ -920,17 +919,17 @@ export function TasksView(navigate = null) {
     const grid = container.querySelector("#tasksGrid");
     if (!grid) return;
     grid.innerHTML = `
-      <div class="empty-state-box" style="grid-column: 1 / -1; border-color: rgba(248, 113, 113, 0.4);">
-        <div class="empty-state-icon" style="background: var(--danger-soft); color: var(--danger-red);">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <div class="tasks-empty-card" style="border-color: rgba(248, 113, 113, 0.4);">
+        <div class="tasks-empty-icon" style="background: var(--danger-soft); color: var(--danger-red); border-color: rgba(248, 113, 113, 0.3);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="8" x2="12" y2="12"></line>
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
         </div>
-        <h4 class="empty-state-title" style="color: var(--danger-red);">Unable to Load Tasks</h4>
-        <p class="empty-state-desc">${escapeHTML(message)}</p>
-        <button class="btn-secondary btn-sm" id="btnRetryLoadTasks" style="margin-top: 12px;">Try Again</button>
+        <h4 class="tasks-empty-title" style="color: var(--danger-red);">Unable to Load Tasks</h4>
+        <p class="tasks-empty-desc">${escapeHTML(message)}</p>
+        <button class="btn-secondary btn-sm" id="btnRetryLoadTasks" style="margin-top: 8px;">Try Again</button>
       </div>
     `;
     const retryBtn = grid.querySelector("#btnRetryLoadTasks");
@@ -942,20 +941,19 @@ export function TasksView(navigate = null) {
     fetchTasks();
 
     // 1. Workload chip quick-filters
-    container.querySelectorAll(".workload-chip").forEach((chip) => {
+    container.querySelectorAll(".task-workload-card").forEach((chip) => {
       chip.onclick = () => {
         const targetFilter = chip.getAttribute("data-filter");
-        container.querySelectorAll(".workload-chip").forEach((c) => c.classList.remove("active-chip"));
-        chip.classList.add("active-chip");
+        container.querySelectorAll(".task-workload-card").forEach((c) => c.classList.remove("active-workload"));
+        chip.classList.add("active-workload");
 
-        // Sync tab buttons
-        const tabBtn = container.querySelector(`.task-tab-btn[data-filter="${targetFilter}"]`);
+        const tabBtn = container.querySelector(`.tasks-tab-item[data-filter="${targetFilter}"]`);
         if (tabBtn) {
-          container.querySelectorAll(".task-tab-btn").forEach((t) => {
-            t.classList.remove("active");
+          container.querySelectorAll(".tasks-tab-item").forEach((t) => {
+            t.classList.remove("active-tab");
             t.setAttribute("aria-selected", "false");
           });
-          tabBtn.classList.add("active");
+          tabBtn.classList.add("active-tab");
           tabBtn.setAttribute("aria-selected", "true");
         }
         currentFilter = targetFilter;
@@ -970,22 +968,21 @@ export function TasksView(navigate = null) {
     });
 
     // 2. Filter Tabs
-    container.querySelectorAll(".task-tab-btn").forEach((tab) => {
+    container.querySelectorAll(".tasks-tab-item").forEach((tab) => {
       tab.onclick = () => {
-        container.querySelectorAll(".task-tab-btn").forEach((t) => {
-          t.classList.remove("active");
+        container.querySelectorAll(".tasks-tab-item").forEach((t) => {
+          t.classList.remove("active-tab");
           t.setAttribute("aria-selected", "false");
         });
-        tab.classList.add("active");
+        tab.classList.add("active-tab");
         tab.setAttribute("aria-selected", "true");
 
         currentFilter = tab.getAttribute("data-filter");
-        // Sync workload chip active state
-        container.querySelectorAll(".workload-chip").forEach((c) => {
+        container.querySelectorAll(".task-workload-card").forEach((c) => {
           if (c.getAttribute("data-filter") === currentFilter) {
-            c.classList.add("active-chip");
+            c.classList.add("active-workload");
           } else {
-            c.classList.remove("active-chip");
+            c.classList.remove("active-workload");
           }
         });
 
@@ -1040,7 +1037,6 @@ export function TasksView(navigate = null) {
     const openAddModal = () => {
       lastActiveElement = openAddBtn;
       if (tDateInput) {
-        // Enforce min datetime attribute to prevent past dates
         const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
           .toISOString()
           .slice(0, 16);
