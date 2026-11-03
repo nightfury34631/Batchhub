@@ -1,0 +1,698 @@
+/* BatchHub Tasks & Deadlines CSS — The Nocturnal Observatory Theme System */
+
+/* Container */
+.tasks-page-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+    max-width: 1400px;
+    padding: 24px 36px 40px 36px;
+    box-sizing: border-box;
+}
+
+/* 1. Header & Actions */
+.tasks-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.tasks-title-group h2 {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+    margin-bottom: 4px;
+}
+
+.tasks-title-group p {
+    font-size: 13.5px;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+/* 2. Workload Summary Flight Bar */
+.task-workload-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+}
+
+.workload-chip {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-card);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.workload-chip:hover {
+    background: var(--card-hover);
+    border-color: var(--card-border-subtle);
+    transform: translateY(-1px);
+}
+
+.workload-chip.active-chip {
+    border-color: var(--primary-mint);
+    background: var(--card-hover);
+}
+
+.workload-chip-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.workload-chip-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--text-muted);
+}
+
+.workload-chip-count {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+}
+
+.workload-chip-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.chip-overdue .workload-chip-icon {
+    background: var(--danger-soft);
+    color: var(--danger-red);
+}
+
+.chip-today .workload-chip-icon {
+    background: var(--warning-soft);
+    color: var(--warning-orange);
+}
+
+.chip-active .workload-chip-icon {
+    background: var(--primary-mint-soft);
+    color: var(--primary-mint);
+}
+
+.chip-completed .workload-chip-icon {
+    background: rgba(56, 189, 248, 0.12);
+    color: var(--info-blue);
+}
+
+/* 3. Moderation Section (CR / Admin) */
+.moderation-queue-container {
+    background: var(--card-bg);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: var(--radius-card);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.moderation-queue-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.moderation-header-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.moderation-header-title h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--warning-orange);
+    letter-spacing: 0;
+}
+
+.moderation-count-pill {
+    background: var(--warning-soft);
+    color: var(--warning-orange);
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+}
+
+.moderation-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+}
+
+.moderation-card {
+    background: var(--card-inner);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.moderation-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.moderation-card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.35;
+}
+
+.moderation-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+}
+
+.moderation-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.btn-mod-approve {
+    background: var(--primary-mint);
+    color: #0b1418;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.btn-mod-approve:hover {
+    background: var(--primary-mint-hover);
+}
+
+.btn-mod-reject {
+    background: var(--danger-soft);
+    color: var(--danger-red);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.btn-mod-reject:hover {
+    background: rgba(248, 113, 113, 0.22);
+}
+
+/* 4. Student Pending Section */
+.student-pending-banner {
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+    border-radius: var(--radius-card);
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.student-pending-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--warning-orange);
+}
+
+.student-pending-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.student-pending-item {
+    background: var(--card-inner);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.student-pending-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.student-pending-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.student-pending-tag {
+    font-size: 11.5px;
+    color: var(--text-dim);
+}
+
+/* 5. Comprehensive Filter & Sort Toolbar */
+.task-toolbar-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-card);
+    padding: 14px 18px;
+}
+
+.task-toolbar-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.task-search-field {
+    flex: 1;
+    min-width: 240px;
+    display: flex;
+    align-items: center;
+    background: var(--card-inner);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-pill);
+    padding: 8px 14px;
+    gap: 10px;
+    transition: border-color 0.15s ease;
+}
+
+.task-search-field:focus-within {
+    border-color: var(--primary-mint);
+}
+
+.task-search-field input {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 13.5px;
+    width: 100%;
+    outline: none;
+}
+
+.task-search-field input::placeholder {
+    color: var(--text-dim);
+}
+
+.task-filter-tabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+
+.task-tab-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    font-size: 13.5px;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.task-tab-btn:hover {
+    color: var(--text-primary);
+    background: var(--card-inner);
+}
+
+.task-tab-btn.active {
+    background: var(--card-inner);
+    border-color: var(--card-border);
+    color: var(--primary-mint);
+    font-weight: 600;
+}
+
+.task-toolbar-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--card-border);
+    padding-top: 10px;
+}
+
+.task-dropdown-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.task-select-control {
+    background: var(--card-inner);
+    border: 1px solid var(--card-border);
+    color: var(--text-secondary);
+    font-size: 13.5px;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+}
+
+.task-select-control:focus {
+    border-color: var(--primary-mint);
+}
+
+.task-sort-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    color: var(--text-muted);
+}
+
+/* 6. Tasks Grid & Cards */
+.tasks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+}
+
+.task-card-item {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-card);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+    outline: none;
+}
+
+.task-card-item:hover {
+    transform: translateY(-2px);
+    background: var(--card-hover);
+    border-color: rgba(46, 229, 157, 0.25);
+}
+
+.task-card-item:focus-visible {
+    outline: 2px solid var(--primary-mint);
+    outline-offset: 2px;
+}
+
+/* Priority Pip Indicator */
+.task-priority-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.task-priority-pip {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    display: inline-block;
+}
+
+.pip-high {
+    background-color: var(--danger-red);
+}
+
+.pip-medium {
+    background-color: var(--warning-orange);
+}
+
+.pip-low {
+    background-color: var(--text-dim);
+}
+
+.task-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.task-course-eyebrow {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--text-muted);
+}
+
+.task-deadline-badge {
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    padding: 3px 10px;
+    border-radius: var(--radius-pill);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.task-deadline-badge.badge-overdue {
+    background: var(--danger-soft);
+    color: var(--danger-red);
+    border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.task-deadline-badge.badge-today {
+    background: var(--warning-soft);
+    color: var(--warning-orange);
+    border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.task-deadline-badge.badge-soon {
+    background: var(--warning-soft);
+    color: var(--warning-orange);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.task-deadline-badge.badge-active {
+    background: var(--card-inner);
+    color: var(--text-secondary);
+    border: 1px solid var(--card-border);
+}
+
+.task-deadline-badge.badge-completed {
+    background: var(--primary-mint-soft);
+    color: var(--primary-mint);
+    border: 1px solid rgba(46, 229, 157, 0.3);
+}
+
+.task-card-title {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--text-primary);
+    letter-spacing: 0;
+}
+
+.task-card-title.completed-title {
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+.task-card-desc {
+    font-size: 13.5px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.task-card-due-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card-inner);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 13.5px;
+    color: var(--text-primary);
+}
+
+.task-card-due-box svg {
+    color: var(--primary-mint);
+    flex-shrink: 0;
+}
+
+.task-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-top: 1px solid var(--card-border);
+    padding-top: 10px;
+    margin-top: 2px;
+}
+
+.task-creator-attribution {
+    font-size: 11.5px;
+    color: var(--text-dim);
+}
+
+.task-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.task-btn-toggle-complete {
+    background: var(--card-inner);
+    border: 1px solid var(--primary-mint-border);
+    color: var(--primary-mint);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+}
+
+.task-btn-toggle-complete:hover {
+    background: var(--primary-mint-soft);
+}
+
+.task-btn-toggle-complete.is-done {
+    color: var(--text-dim);
+    border-color: var(--card-border);
+}
+
+.task-btn-delete {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.task-btn-delete:hover {
+    color: var(--danger-red);
+    background: var(--danger-soft);
+}
+
+/* 7. Modal Typography & Accessibility Standards */
+.task-modal-header h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+}
+
+.task-detail-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+}
+
+.task-detail-meta-box {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13.5px;
+    color: var(--text-secondary);
+    background: var(--card-inner);
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--card-border);
+}
+
+.task-detail-instructions {
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    white-space: pre-line;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .tasks-page-container {
+        padding: 16px;
+    }
+    
+    .tasks-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .task-workload-bar {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .task-toolbar-top {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .task-toolbar-bottom {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

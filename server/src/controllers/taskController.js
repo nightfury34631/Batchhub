@@ -20,11 +20,11 @@ export const getTasks = async (req, res) => {
       [userId]
     );
 
-    // 2. If user is CR or Admin, also fetch pending tasks submitted by students
+    // 2. If user is CR or Admin, fetch all pending tasks for moderation
     let pendingTasks = [];
     if (userRole === "cr" || userRole === "admin") {
       const [pTasks] = await db.execute(
-        `SELECT t.*, u.name as creator_name
+        `SELECT t.*, u.name as creator_name, u.student_id as creator_student_id
          FROM tasks t
          LEFT JOIN users u ON t.created_by = u.id
          WHERE t.status = 'pending'
@@ -33,7 +33,17 @@ export const getTasks = async (req, res) => {
       pendingTasks = pTasks;
     }
 
-    res.status(200).json({ success: true, tasks, pendingTasks });
+    // 3. User's own pending submissions (visible to the student who submitted them)
+    const [myPendingTasks] = await db.execute(
+      `SELECT t.*, u.name as creator_name
+       FROM tasks t
+       LEFT JOIN users u ON t.created_by = u.id
+       WHERE t.status = 'pending' AND t.created_by = ?
+       ORDER BY t.created_at DESC`,
+      [userId]
+    );
+
+    res.status(200).json({ success: true, tasks, pendingTasks, myPendingTasks });
   } catch (error) {
     console.error("Get Tasks Error:", error.message);
     res.status(500).json({ success: false, message: "Failed to retrieve tasks." });
@@ -55,11 +65,35 @@ export const createTask = async (req, res) => {
       return res.status(400).json({ success: false, message: "Task due date is required." });
     }
 
+    const dueTime = new Date(due_date).getTime();
+    if (isNaN(dueTime)) {
+      return res.status(400).json({ success: false, message: "Valid submission due date is required." });
+    }
+    if (dueTime < Date.now() - 5 * 60 * 1000) {
+      return res.status(400).json({ success: false, message: "Submission due date cannot be set in the past." });
+    }
+
     const cleanTitle = title.trim();
     const cleanDesc = description ? description.trim() : "";
     const cleanCourse = course_code ? course_code.trim() : "General";
     const cleanPriority = ["Low", "Medium", "High"].includes(priority) ? priority : "Medium";
     const cleanDept = department ? department.trim() : "CSE";
+
+    // Duplicate check: Prevent duplicate task submissions with identical title, course, and deadline
+    const [existing] = await db.execute(
+      `SELECT id FROM tasks 
+       WHERE LOWER(TRIM(title)) = LOWER(?) 
+         AND LOWER(TRIM(course_code)) = LOWER(?) 
+         AND due_date = ? 
+         AND status IN ('pending', 'approved')`,
+      [cleanTitle, cleanCourse, due_date]
+    );
+    if (existing.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "A task with this title, course code, and deadline already exists or is pending review.",
+      });
+    }
 
     // Enforce Approval: CRs/Admins auto-approved, Students pending
     const status = userRole === "cr" || userRole === "admin" ? "approved" : "pending";

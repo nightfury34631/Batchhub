@@ -1,10 +1,15 @@
 import jwt from "jsonwebtoken";
 import axios from "axios";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, "../.env") });
 dotenv.config();
 
 const API_BASE = "http://localhost:5000/api";
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || "default_jwt_secret";
 
 async function runDashboardTests() {
   console.log("\n=======================================================");
@@ -127,3 +132,4 @@ async function runDashboardTests() {
 }
 
 runDashboardTests();
+
