@@ -13,3 +13,4 @@ router.put("/read-all", verifyToken, markAllNotificationsRead);
 router.put("/:id/read", verifyToken, markNotificationRead);
 
 export default router;
+

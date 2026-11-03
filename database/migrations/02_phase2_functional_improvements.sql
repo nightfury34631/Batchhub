@@ -29,3 +29,4 @@ ADD COLUMN IF NOT EXISTS request_type ENUM('join_request', 'invitation') DEFAULT
 
 -- 4. Add Performance Index for Notices Sorting
 CREATE INDEX IF NOT EXISTS idx_notices_pinned_date ON notices (is_pinned, created_at);
+

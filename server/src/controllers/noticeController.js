@@ -18,13 +18,20 @@ export const getNotices = async (req, res) => {
   }
 };
 
-// Create a new announcement/notice
+// Create a new announcement/notice (CR and Admin only)
 export const createNotice = async (req, res) => {
   try {
+    const userRole = req.user.role;
+    if (userRole !== "cr" && userRole !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: Only Class Representatives and Administrators can post announcements.",
+      });
+    }
+
     const { title, description, category, target_audience, priority, is_pinned } = req.body;
     const userId = req.user.id;
-    const userRole = req.user.role;
-    const isStaff = userRole === "cr" || userRole === "admin";
+    const isStaff = true;
 
     if (!title || typeof title !== "string" || title.trim() === "") {
       return res.status(400).json({ success: false, message: "Announcement title is required." });

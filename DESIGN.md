@@ -237,3 +237,4 @@ Depth hierarchy:
 - **Don't** allow primary mint accents to exceed 10% of the visible viewport area.
 - **Don't** use heavy colored drop shadows under resting cards.
 - **Don't** display raw database timestamps without humanized formatting (e.g., "Oct 24, 2026").
+

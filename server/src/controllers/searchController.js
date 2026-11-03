@@ -127,3 +127,4 @@ export const globalSearch = async (req, res) => {
     res.status(500).json({ success: false, message: "Search service unavailable." });
   }
 };
+

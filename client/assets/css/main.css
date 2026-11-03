@@ -466,7 +466,6 @@ body {
     border-radius: 50%;
     background-color: var(--primary-mint);
     border: 1.5px solid var(--card-bg);
-    box-shadow: 0 0 6px var(--primary-mint);
 }
 
 .user-profile-badge {
@@ -774,7 +773,6 @@ body {
     position: absolute;
     right: 14px;
     top: 16px;
-    box-shadow: 0 0 6px var(--primary-mint);
 }
 
 .notification-count-badge {

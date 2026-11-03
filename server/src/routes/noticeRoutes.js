@@ -11,7 +11,7 @@ import { verifyToken, requireRole } from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 router.get("/", verifyToken, getNotices);
-router.post("/", verifyToken, createNotice);
+router.post("/", verifyToken, requireRole("cr", "admin"), createNotice);
 router.put("/:id", verifyToken, updateNotice);
 router.delete("/:id", verifyToken, deleteNotice);
 router.put("/:id/pin", verifyToken, requireRole("cr", "admin"), togglePinNotice);
