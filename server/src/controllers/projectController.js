@@ -633,14 +633,15 @@ export const rejectInvitation = async (req, res) => {
   }
 };
 
-// Project Owner or Admin: Remove a Member from Project / Member Leave
+// Project Owner or Admin: Remove a Member from Project / Member Leave (Transactional)
 export const removeProjectMember = async (req, res) => {
+  const conn = await db.getConnection();
   try {
     const { projectId, memberUserId } = req.params;
     const currentUserId = req.user.id;
     const currentUserRole = req.user.role;
 
-    const [projects] = await db.execute("SELECT id, created_by, title FROM projects WHERE id = ?", [projectId]);
+    const [projects] = await conn.execute("SELECT id, created_by, title FROM projects WHERE id = ?", [projectId]);
     if (projects.length === 0) {
       return res.status(404).json({ success: false, message: "Project not found." });
     }
@@ -659,15 +660,19 @@ export const removeProjectMember = async (req, res) => {
       return res.status(400).json({ success: false, message: "The project owner cannot be removed. Transfer ownership or delete the project." });
     }
 
-    await db.execute("DELETE FROM project_members WHERE project_id = ? AND user_id = ?", [projectId, memberUserId]);
+    await conn.beginTransaction();
+
+    await conn.execute("DELETE FROM project_members WHERE project_id = ? AND user_id = ?", [projectId, memberUserId]);
 
     // Resync team_members string
-    const [members] = await db.execute(
+    const [members] = await conn.execute(
       `SELECT u.name FROM project_members pm JOIN users u ON pm.user_id = u.id WHERE pm.project_id = ?`,
       [projectId]
     );
     const updatedTeamString = members.map((m) => m.name).join(", ");
-    await db.execute("UPDATE projects SET team_members = ? WHERE id = ?", [updatedTeamString, projectId]);
+    await conn.execute("UPDATE projects SET team_members = ? WHERE id = ?", [updatedTeamString, projectId]);
+
+    await conn.commit();
 
     if (!isSelf) {
       await createNotification({
@@ -685,8 +690,11 @@ export const removeProjectMember = async (req, res) => {
       message: isSelf ? "You have left the project team." : "Member removed from project successfully.",
     });
   } catch (error) {
+    await conn.rollback();
     console.error("Remove Member Error:", error.message);
     res.status(500).json({ success: false, message: "Failed to remove member from project." });
+  } finally {
+    conn.release();
   }
 };
 

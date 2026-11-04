@@ -28,12 +28,26 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
--- 4. Unique constraint to prevent duplicate routine slots
--- (batch, day_of_week, time_slot, room_no)
+-- 4. Unique constraints to prevent duplicate routine slots & room/batch timetable conflicts
 CREATE UNIQUE INDEX IF NOT EXISTS uq_routines_slot 
 ON routines (batch, day_of_week, time_slot, room_no);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_routines_room_time 
+ON routines (day_of_week, time_slot, room_no);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_routines_batch_time 
+ON routines (batch, day_of_week, time_slot);
 
 -- 5. Unique constraint to prevent duplicate course registrations
 -- (course_code, batch, department)
 CREATE UNIQUE INDEX IF NOT EXISTS uq_course_batch_dept 
 ON semester_courses (course_code, batch, department);
+
+-- 6. Shared rate limits table (optional database adapter for multi-instance clusters)
+CREATE TABLE IF NOT EXISTS rate_limits (
+    ip_key VARCHAR(100) PRIMARY KEY,
+    hit_count INT DEFAULT 1,
+    reset_time BIGINT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+

@@ -8,6 +8,7 @@ export const createNotification = async ({
   message,
   relatedEntityType = null,
   relatedEntityId = null,
+  idempotencyKey = null,
   conn = null,
 }) => {
   const executor = conn || db;
@@ -18,14 +19,25 @@ export const createNotification = async ({
     const cleanMessage = message.trim();
     const cleanType = type || "system";
 
-    // Deduplication check: prevent identical unread notification within 60 seconds
-    const [recent] = await executor.execute(
-      `SELECT id FROM notifications 
-       WHERE user_id = ? AND type = ? AND title = ? AND is_read = 0 
-         AND created_at >= NOW() - INTERVAL 1 MINUTE
-       LIMIT 1`,
-      [userId, cleanType, cleanTitle]
-    );
+    // Deduplication check: prevent identical unread notification for the SAME entity
+    // If related entity is specified, deduplicate by entity; otherwise deduplicate by title + message
+    let duplicateQuery = `
+      SELECT id FROM notifications 
+      WHERE user_id = ? AND type = ? AND is_read = 0 
+        AND created_at >= NOW() - INTERVAL 1 MINUTE
+    `;
+    const duplicateParams = [userId, cleanType];
+
+    if (relatedEntityType && relatedEntityId) {
+      duplicateQuery += " AND related_entity_type = ? AND related_entity_id = ?";
+      duplicateParams.push(relatedEntityType, relatedEntityId);
+    } else {
+      duplicateQuery += " AND title = ? AND message = ?";
+      duplicateParams.push(cleanTitle, cleanMessage);
+    }
+    duplicateQuery += " LIMIT 1";
+
+    const [recent] = await executor.execute(duplicateQuery, duplicateParams);
     if (recent.length > 0) {
       return recent[0].id;
     }
@@ -60,6 +72,20 @@ export const broadcastNotification = async ({
   relatedEntityId = null,
 }) => {
   try {
+    // Prevent duplicate broadcast for the exact same entity within 60 seconds
+    if (relatedEntityType && relatedEntityId) {
+      const [existingBroadcast] = await db.execute(
+        `SELECT id FROM notifications 
+         WHERE type = ? AND related_entity_type = ? AND related_entity_id = ? 
+           AND created_at >= NOW() - INTERVAL 1 MINUTE 
+         LIMIT 1`,
+        [type || "announcement", relatedEntityType, relatedEntityId]
+      );
+      if (existingBroadcast.length > 0) {
+        return 0; // Already broadcasted
+      }
+    }
+
     let query = "SELECT id FROM users WHERE 1=1";
     const params = [];
 
