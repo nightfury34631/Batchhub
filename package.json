@@ -1,0 +1,18 @@
+{
+  "name": "batchhub",
+  "version": "2.0.0",
+  "description": "BatchHub — Centralized Academic Management & Collaboration Platform",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "client": "npm --prefix client-react run dev",
+    "server": "npm --prefix server start",
+    "build": "npm --prefix client-react run build",
+    "preview": "npm --prefix client-react run preview",
+    "test": "node server/test/dashboard_fixes.test.js && node server/test/tasks_phase_implementation.test.js && node server/test/security_and_auth.test.js && node server/test/phase2_features.test.js",
+    "legacy:client": "python -m http.server 3001 -d client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.5"
+  }
+}

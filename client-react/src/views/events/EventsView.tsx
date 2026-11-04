@@ -580,3 +580,4 @@ export const EventsView: React.FC = () => {
     </AppLayout>
   );
 };
+
