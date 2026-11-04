@@ -12,6 +12,7 @@ export const RegisterView: React.FC = () => {
     name: '',
     email: '',
     password: '',
+    role: 'student',
     student_id: '',
     batch: '',
     department: 'CSE',
@@ -109,7 +110,7 @@ export const RegisterView: React.FC = () => {
             type="text"
             value={formData.name}
             onChange={handleChange}
-            placeholder="e.g. Tripto Rahman"
+            placeholder="e.g. Tripto Khan"
             required
           />
 
@@ -157,12 +158,12 @@ export const RegisterView: React.FC = () => {
             />
 
             <Input
-              label="Batch / Year *"
+              label="Year *"
               name="batch"
               type="text"
               value={formData.batch}
               onChange={handleChange}
-              placeholder="e.g. 2024 / 3rd Year"
+              placeholder="e.g. 3rd Year"
               required
             />
           </div>
