@@ -10,7 +10,6 @@ BatchHub is a modern, high-performance academic management and student collabora
 | :--- | :--- | :--- | :--- |
 | **Main Application** | React 19 + TypeScript + Vite + Tailwind v4 | `http://localhost:3000` | Primary frontend application with Midnight Campus theme |
 | **Backend API** | Node.js + Express + MySQL | `http://localhost:5000/api` | REST API with JWT authentication & RBAC |
-| **Legacy Frontend** | Vanilla JavaScript (ES Modules) | `http://localhost:3001` (optional backup) | Preserved legacy frontend archive (`client/`) |
 
 ---
 
@@ -49,9 +48,6 @@ npm run dev
 * `npm run preview` — Serves the production build on `http://localhost:3000` with API proxying and SPA fallback.
 * `npm test` — Executes the complete automated test suite (82 integration, auth, and security tests).
 
-### Legacy Backup
-* `npm run legacy:client` — Serves the original Vanilla JS application (`client/`) on `http://localhost:3001` as a rollback backup.
-
 ---
 
 ## 🎨 Visual Identity — Midnight Campus
@@ -74,3 +70,4 @@ npm run dev
 6. **Academic Resources:** Study materials repository with notes, lecture slides, books, and exam question banks.
 7. **Members Directory:** Student search by skills, student ID, batch, and direct project invitations.
 8. **CR / Admin Panel:** Gated cohort leadership suite for approving peer submissions, adding timetable slots, and enrolling semester curriculum courses.
+

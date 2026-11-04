@@ -9,8 +9,7 @@
     "server": "npm --prefix server start",
     "build": "npm --prefix client-react run build",
     "preview": "npm --prefix client-react run preview",
-    "test": "node server/test/dashboard_fixes.test.js && node server/test/tasks_phase_implementation.test.js && node server/test/security_and_auth.test.js && node server/test/phase2_features.test.js",
-    "legacy:client": "python -m http.server 3001 -d client"
+    "test": "node server/test/dashboard_fixes.test.js && node server/test/tasks_phase_implementation.test.js && node server/test/security_and_auth.test.js && node server/test/phase2_features.test.js"
   },
   "devDependencies": {
     "concurrently": "^9.2.5"
