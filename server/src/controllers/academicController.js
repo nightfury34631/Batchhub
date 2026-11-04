@@ -90,7 +90,7 @@ export const addRoutine = async (req, res) => {
     if (error.code === "ER_DUP_ENTRY" || error.errno === 1062) {
       return res.status(409).json({
         success: false,
-        message: "A routine slot already exists for this room, day, time, and batch.",
+        message: "Timetable schedule conflict: This room is already occupied or this cohort batch already has a class scheduled at this time.",
       });
     }
     res.status(500).json({ success: false, error: error.message });

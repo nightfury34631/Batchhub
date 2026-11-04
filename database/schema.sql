@@ -222,6 +222,15 @@ ALTER TABLE materials ADD COLUMN IF NOT EXISTS reviewed_at DATETIME NULL;
 ALTER TABLE materials ADD COLUMN IF NOT EXISTS rejection_reason TEXT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_routines_slot ON routines (batch, day_of_week, time_slot, room_no);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_routines_room_time ON routines (day_of_week, time_slot, room_no);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_routines_batch_time ON routines (batch, day_of_week, time_slot);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_course_batch_dept ON semester_courses (course_code, batch, department);
+
+CREATE TABLE IF NOT EXISTS rate_limits (
+    ip_key VARCHAR(100) PRIMARY KEY,
+    hit_count INT DEFAULT 1,
+    reset_time BIGINT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
 
 
