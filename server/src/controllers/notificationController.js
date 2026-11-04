@@ -151,3 +151,27 @@ export const markAllNotificationsRead = async (req, res) => {
   }
 };
 
+// DELETE /api/notifications/:id
+export const deleteNotification = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const [notif] = await db.execute("SELECT id, user_id FROM notifications WHERE id = ?", [id]);
+    if (notif.length === 0) {
+      return res.status(404).json({ success: false, message: "Notification not found." });
+    }
+
+    if (notif[0].user_id !== userId && req.user.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Unauthorized to delete this notification." });
+    }
+
+    await db.execute("DELETE FROM notifications WHERE id = ?", [id]);
+
+    res.status(200).json({ success: true, message: "Notification deleted successfully." });
+  } catch (error) {
+    console.error("Delete notification error:", error.message);
+    res.status(500).json({ success: false, message: "Failed to delete notification." });
+  }
+};
+

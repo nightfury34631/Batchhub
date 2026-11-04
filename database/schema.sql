@@ -207,3 +207,11 @@ ADD COLUMN IF NOT EXISTS priority ENUM('Normal', 'Important', 'Urgent') DEFAULT 
 
 ALTER TABLE project_requests
 ADD COLUMN IF NOT EXISTS request_type ENUM('join_request', 'invitation') DEFAULT 'join_request';
+
+-- Performance Indexes (Migration 03)
+CREATE INDEX IF NOT EXISTS idx_materials_status_created ON materials (status, created_at);
+CREATE INDEX IF NOT EXISTS idx_materials_course_code ON materials (course_code);
+CREATE INDEX IF NOT EXISTS idx_routines_batch ON routines (batch);
+CREATE INDEX IF NOT EXISTS idx_semester_courses_batch ON semester_courses (batch);
+CREATE INDEX IF NOT EXISTS idx_users_batch_dept ON users (batch, department);
+

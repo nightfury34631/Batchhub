@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search,
   Calendar,
   Bell,
   Menu,
+  CheckCheck,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { apiClient } from '../../services/apiClient';
 import { Dropdown } from '../ui/Dropdown';
 import { Badge } from '../ui/Badge';
 
@@ -16,15 +19,51 @@ export interface TopbarProps {
   onOpenCommand: () => void;
 }
 
+interface NotificationItem {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  related_entity_type?: string;
+  related_entity_id?: number;
+  is_read: number | boolean;
+  created_at: string;
+}
+
 export const Topbar: React.FC<TopbarProps> = ({
   title = 'Dashboard',
   onOpenSidebar,
   onOpenCommand,
 }) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, logout } = useAuthStore();
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  // Live Notifications from backend
+  const { data: notifData } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => apiClient.get<{ notifications: NotificationItem[]; unreadCount: number }>('/notifications'),
+    refetchInterval: 30000,
+  });
+
+  const notifications = notifData?.notifications || [];
+  const unreadCount = notifData?.unreadCount || 0;
+
+  const markAllReadMutation = useMutation({
+    mutationFn: () => apiClient.put('/notifications/read-all'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+
+  const markOneReadMutation = useMutation({
+    mutationFn: (id: number) => apiClient.put(`/notifications/${id}/read`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
 
   // Close notifications on click outside
   useEffect(() => {
@@ -123,38 +162,84 @@ export const Topbar: React.FC<TopbarProps> = ({
             title="Notifications"
           >
             <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#00D084]" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#00D084] animate-pulse" />
+            )}
           </button>
 
           {isNotifOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-[#1B2E36] border border-[#1F353C] rounded-[16px] shadow-[0_16px_40px_rgba(0,0,0,0.6)] p-3 z-50 animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#1B2E36] border border-[#1F353C] rounded-[16px] shadow-[0_16px_40px_rgba(0,0,0,0.6)] p-3.5 z-50 animate-in fade-in zoom-in-95 duration-100 max-h-[460px] flex flex-col">
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#1F353C]">
-                <span className="text-[13px] font-bold text-white">Cohort Notifications</span>
-                <Badge variant="mint" size="xs">
-                  2 New
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-bold text-white">Cohort Notifications</span>
+                  {unreadCount > 0 ? (
+                    <Badge variant="mint" size="xs">
+                      {unreadCount} New
+                    </Badge>
+                  ) : (
+                    <Badge variant="muted" size="xs">
+                      0 New
+                    </Badge>
+                  )}
+                </div>
+
+                {unreadCount > 0 && (
+                  <button
+                    onClick={() => markAllReadMutation.mutate()}
+                    className="text-[11.5px] text-[#00D084] hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                  >
+                    <CheckCheck className="w-3.5 h-3.5" />
+                    <span>Mark all read</span>
+                  </button>
+                )}
               </div>
 
-              <div className="flex flex-col gap-2">
-                <div className="p-2.5 rounded-[10px] bg-[#15242A] border border-[#1F353C]/60 flex flex-col gap-1 text-left">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11.5px] font-semibold text-[#00D084]">URGENT NOTICE</span>
-                    <span className="text-[11px] text-[#9BB2BC]">10m ago</span>
+              <div className="flex-1 overflow-y-auto flex flex-col gap-2 max-h-72 pr-0.5">
+                {notifications.length === 0 ? (
+                  <div className="py-8 text-center text-[12.5px] text-[#9BB2BC]">
+                    All caught up! No recent notifications.
                   </div>
-                  <span className="text-[12.5px] font-medium text-white leading-snug">
-                    Final-Year Project Proposal Submission & Supervisor Defense
-                  </span>
-                </div>
-
-                <div className="p-2.5 rounded-[10px] bg-[#15242A] border border-[#1F353C]/60 flex flex-col gap-1 text-left">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11.5px] font-semibold text-[#38BDF8]">EXAM SCHEDULE</span>
-                    <span className="text-[11px] text-[#9BB2BC]">2h ago</span>
-                  </div>
-                  <span className="text-[12.5px] font-medium text-white leading-snug">
-                    CSE-3101 Midterm exam room announced: Room 402
-                  </span>
-                </div>
+                ) : (
+                  notifications.map((n) => {
+                    const isUnread = !Boolean(n.is_read);
+                    return (
+                      <div
+                        key={n.id}
+                        onClick={() => {
+                          if (isUnread) markOneReadMutation.mutate(n.id);
+                        }}
+                        className={`p-2.5 rounded-[10px] border flex flex-col gap-1 text-left transition-colors cursor-pointer ${
+                          isUnread
+                            ? 'bg-[#15242A] border-[#00D084]/30 hover:border-[#00D084]/60'
+                            : 'bg-[#121F24] border-[#1F353C]/40 hover:bg-[#15242A]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span
+                            className={`text-[11px] font-bold uppercase tracking-wider ${
+                              n.type === 'announcement'
+                                ? 'text-[#38BDF8]'
+                                : n.type === 'task'
+                                ? 'text-[#00D084]'
+                                : 'text-[#F59E0B]'
+                            }`}
+                          >
+                            {n.type}
+                          </span>
+                          <span className="text-[10.5px] text-[#9BB2BC]">
+                            {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <span className="text-[12.5px] font-semibold text-white leading-snug">
+                          {n.title}
+                        </span>
+                        <p className="text-[11.5px] text-[#9BB2BC] line-clamp-2 leading-relaxed">
+                          {n.message}
+                        </p>
+                      </div>
+                    );
+                  })
+                )}
               </div>
 
               <Link

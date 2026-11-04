@@ -34,7 +34,20 @@ export const getProjects = async (req, res) => {
       [userId]
     );
 
-    res.status(200).json({ success: true, projects, incomingRequests, myRequests });
+    // Fetch pending invitations received by the logged-in user
+    const [incomingInvitations] = await db.execute(
+      `SELECT pr.id as request_id, pr.project_id, pr.status, pr.request_type, pr.created_at,
+              p.title as project_title, p.tech_stack,
+              u.name as inviter_name, u.id as inviter_id, u.email as inviter_email
+       FROM project_requests pr
+       JOIN projects p ON pr.project_id = p.id
+       JOIN users u ON p.created_by = u.id
+       WHERE pr.user_id = ? AND pr.status = 'pending' AND pr.request_type = 'invitation'
+       ORDER BY pr.created_at DESC`,
+      [userId]
+    );
+
+    res.status(200).json({ success: true, projects, incomingRequests, incomingInvitations, myRequests });
   } catch (error) {
     console.error("Get Projects Error:", error.message);
     res.status(500).json({ success: false, message: "Failed to retrieve projects." });
@@ -229,7 +242,7 @@ export const joinProject = async (req, res) => {
 export const inviteStudent = async (req, res) => {
   try {
     const { projectId } = req.params;
-    const { studentId } = req.body;
+    const studentId = req.body.studentId || req.body.user_id;
     const currentUserId = req.user.id;
 
     if (!studentId) {
@@ -279,7 +292,7 @@ export const inviteStudent = async (req, res) => {
     }
 
     // 5. Insert Invitation
-    await db.execute(
+    const [inviteResult] = await db.execute(
       `INSERT INTO project_requests (project_id, user_id, status, request_type) VALUES (?, ?, 'pending', 'invitation')`,
       [projectId, studentId]
     );
@@ -300,6 +313,7 @@ export const inviteStudent = async (req, res) => {
     res.status(201).json({
       success: true,
       message: `Invitation successfully sent to ${targetUser.name}!`,
+      invitationId: inviteResult.insertId,
     });
   } catch (error) {
     console.error("Invite Student Error:", error.message);
@@ -501,6 +515,167 @@ export const updateProject = async (req, res) => {
   } catch (error) {
     console.error("Update Project Error:", error.message);
     res.status(500).json({ success: false, message: "Failed to update project." });
+  }
+};
+
+// Student: Accept an invitation to join a project
+export const acceptInvitation = async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    const { requestId } = req.params;
+    const userId = req.user.id;
+
+    const [reqs] = await conn.execute(
+      `SELECT pr.*, p.title as project_title, p.created_by as project_owner_id, p.team_members, u.name as student_name
+       FROM project_requests pr
+       JOIN projects p ON pr.project_id = p.id
+       JOIN users u ON pr.user_id = u.id
+       WHERE pr.id = ? AND pr.request_type = 'invitation'`,
+      [requestId]
+    );
+
+    if (reqs.length === 0) {
+      return res.status(404).json({ success: false, message: "Project invitation not found." });
+    }
+
+    const invitation = reqs[0];
+
+    if (invitation.user_id !== userId) {
+      return res.status(403).json({ success: false, message: "Forbidden: This invitation was not addressed to you." });
+    }
+
+    if (invitation.status !== "pending") {
+      return res.status(400).json({ success: false, message: `Invitation has already been ${invitation.status}.` });
+    }
+
+    await conn.beginTransaction();
+
+    await conn.execute('UPDATE project_requests SET status = "approved" WHERE id = ?', [requestId]);
+
+    await conn.execute(
+      `INSERT INTO project_members (project_id, user_id, role_in_project)
+       VALUES (?, ?, 'Member')
+       ON DUPLICATE KEY UPDATE role_in_project = 'Member'`,
+      [invitation.project_id, userId]
+    );
+
+    const updatedTeam = invitation.team_members && invitation.team_members.trim() !== ""
+      ? `${invitation.team_members.trim()}, ${invitation.student_name}`
+      : invitation.student_name;
+
+    await conn.execute("UPDATE projects SET team_members = ? WHERE id = ?", [updatedTeam, invitation.project_id]);
+
+    await conn.commit();
+
+    createNotification({
+      userId: invitation.project_owner_id,
+      type: "project",
+      title: "🎉 Invitation Accepted!",
+      message: `${invitation.student_name} accepted your invitation to join "${invitation.project_title}"!`,
+      relatedEntityType: "project",
+      relatedEntityId: invitation.project_id,
+    });
+
+    res.status(200).json({ success: true, message: "Project invitation accepted! You are now a team member." });
+  } catch (error) {
+    await conn.rollback();
+    console.error("Accept Invitation Error:", error.message);
+    res.status(500).json({ success: false, message: "Failed to accept invitation." });
+  } finally {
+    conn.release();
+  }
+};
+
+// Student: Decline an invitation to join a project
+export const rejectInvitation = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const userId = req.user.id;
+
+    const [reqs] = await db.execute(
+      `SELECT pr.*, p.title as project_title, p.created_by as project_owner_id, u.name as student_name
+       FROM project_requests pr
+       JOIN projects p ON pr.project_id = p.id
+       JOIN users u ON pr.user_id = u.id
+       WHERE pr.id = ? AND pr.request_type = 'invitation'`,
+      [requestId]
+    );
+
+    if (reqs.length === 0) {
+      return res.status(404).json({ success: false, message: "Project invitation not found." });
+    }
+
+    const invitation = reqs[0];
+
+    if (invitation.user_id !== userId) {
+      return res.status(403).json({ success: false, message: "Forbidden: This invitation was not addressed to you." });
+    }
+
+    if (invitation.status !== "pending") {
+      return res.status(400).json({ success: false, message: `Invitation has already been ${invitation.status}.` });
+    }
+
+    await db.execute('UPDATE project_requests SET status = "rejected" WHERE id = ?', [requestId]);
+
+    createNotification({
+      userId: invitation.project_owner_id,
+      type: "project",
+      title: "Project Invitation Declined",
+      message: `${invitation.student_name} declined the invitation to join "${invitation.project_title}".`,
+      relatedEntityType: "project",
+      relatedEntityId: invitation.project_id,
+    });
+
+    res.status(200).json({ success: true, message: "Project invitation declined." });
+  } catch (error) {
+    console.error("Decline Invitation Error:", error.message);
+    res.status(500).json({ success: false, message: "Failed to decline invitation." });
+  }
+};
+
+// Project Owner or Admin: Remove a Member from Project / Member Leave
+export const removeProjectMember = async (req, res) => {
+  try {
+    const { projectId, memberUserId } = req.params;
+    const currentUserId = req.user.id;
+    const currentUserRole = req.user.role;
+
+    const [projects] = await db.execute("SELECT id, created_by, title FROM projects WHERE id = ?", [projectId]);
+    if (projects.length === 0) {
+      return res.status(404).json({ success: false, message: "Project not found." });
+    }
+
+    const project = projects[0];
+    const isOwner = project.created_by === currentUserId;
+    const isAdmin = currentUserRole === "admin";
+    const isSelf = Number(memberUserId) === Number(currentUserId);
+
+    if (!isOwner && !isAdmin && !isSelf) {
+      return res.status(403).json({ success: false, message: "Forbidden: You are not authorized to remove this member." });
+    }
+
+    // Cannot remove project owner through member removal
+    if (Number(memberUserId) === Number(project.created_by)) {
+      return res.status(400).json({ success: false, message: "The project owner cannot be removed. Transfer ownership or delete the project." });
+    }
+
+    await db.execute("DELETE FROM project_members WHERE project_id = ? AND user_id = ?", [projectId, memberUserId]);
+
+    // Resync team_members string
+    const [members] = await db.execute(
+      `SELECT u.name FROM project_members pm JOIN users u ON pm.user_id = u.id WHERE pm.project_id = ?`,
+      [projectId]
+    );
+    const updatedTeamString = members.map((m) => m.name).join(", ");
+    await db.execute("UPDATE projects SET team_members = ? WHERE id = ?", [updatedTeamString, projectId]);
+
+    res.status(200).json({
+      success: true,
+      message: isSelf ? "You have left the project team." : "Member removed from project successfully.",
+    });
+  } catch (error) {
+    console.error("Remove Member Error:", error.message);
+    res.status(500).json({ success: false, message: "Failed to remove member from project." });
   }
 };
 

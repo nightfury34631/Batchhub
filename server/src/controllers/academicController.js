@@ -40,7 +40,7 @@ export const addCourse = async (req, res) => {
     if (!course_code || !course_title || !department || !batch) {
       return res.status(400).json({ success: false, message: "All course fields are required." });
     }
-    await db.execute(
+    const [result] = await db.execute(
       "INSERT INTO semester_courses (course_code, course_title, department, batch) VALUES (?, ?, ?, ?)",
       [
         course_code.trim(),
@@ -51,7 +51,7 @@ export const addCourse = async (req, res) => {
     );
     res
       .status(201)
-      .json({ success: true, message: "Course added successfully!" });
+      .json({ success: true, message: "Course added successfully!", courseId: result.insertId });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -67,7 +67,7 @@ export const addRoutine = async (req, res) => {
     if (!batch || !day_of_week || !time_slot || !course_name || !room) {
       return res.status(400).json({ success: false, message: "All routine fields are required." });
     }
-    await db.execute(
+    const [result] = await db.execute(
       "INSERT INTO routines (batch, day_of_week, time_slot, course_name, room_no) VALUES (?, ?, ?, ?, ?)",
       [
         batch.trim(),
@@ -79,7 +79,45 @@ export const addRoutine = async (req, res) => {
     );
     res
       .status(201)
-      .json({ success: true, message: "Routine slot added successfully!" });
+      .json({ success: true, message: "Routine slot added successfully!", routineId: result.insertId });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const updateRoutine = async (req, res) => {
+  try {
+    if (req.user.role !== "cr" && req.user.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Unauthorized." });
+    }
+    const { routineId } = req.params;
+    const { batch, day_of_week, time_slot, course_name } = req.body;
+    const room = req.body.room_no || req.body.room_number;
+
+    const [existing] = await db.execute("SELECT id FROM routines WHERE id = ?", [routineId]);
+    if (existing.length === 0) {
+      return res.status(404).json({ success: false, message: "Routine slot not found." });
+    }
+
+    await db.execute(
+      `UPDATE routines 
+       SET batch = COALESCE(?, batch),
+           day_of_week = COALESCE(?, day_of_week),
+           time_slot = COALESCE(?, time_slot),
+           course_name = COALESCE(?, course_name),
+           room_no = COALESCE(?, room_no)
+       WHERE id = ?`,
+      [
+        batch ? batch.trim() : null,
+        day_of_week ? day_of_week.trim() : null,
+        time_slot ? time_slot.trim() : null,
+        course_name ? course_name.trim() : null,
+        room ? room.trim() : null,
+        routineId,
+      ]
+    );
+
+    res.status(200).json({ success: true, message: "Routine slot updated successfully!" });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -93,6 +131,41 @@ export const deleteRoutine = async (req, res) => {
     const { routineId } = req.params;
     await db.execute("DELETE FROM routines WHERE id = ?", [routineId]);
     res.status(200).json({ success: true, message: "Routine slot deleted successfully!" });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const updateCourse = async (req, res) => {
+  try {
+    if (req.user.role !== "cr" && req.user.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Unauthorized." });
+    }
+    const { courseId } = req.params;
+    const { course_code, course_title, department, batch } = req.body;
+
+    const [existing] = await db.execute("SELECT id FROM semester_courses WHERE id = ?", [courseId]);
+    if (existing.length === 0) {
+      return res.status(404).json({ success: false, message: "Course not found." });
+    }
+
+    await db.execute(
+      `UPDATE semester_courses 
+       SET course_code = COALESCE(?, course_code),
+           course_title = COALESCE(?, course_title),
+           department = COALESCE(?, department),
+           batch = COALESCE(?, batch)
+       WHERE id = ?`,
+      [
+        course_code ? course_code.trim() : null,
+        course_title ? course_title.trim() : null,
+        department ? department.trim() : null,
+        batch ? batch.trim() : null,
+        courseId,
+      ]
+    );
+
+    res.status(200).json({ success: true, message: "Course updated successfully!" });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

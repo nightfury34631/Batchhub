@@ -12,6 +12,7 @@ import {
   Clock,
   Layers,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -52,8 +53,8 @@ interface PendingTask {
 }
 
 interface AcademicData {
-  courses?: Array<{ course_code: string; course_title: string; department?: string; batch?: string }>;
-  routine?: Array<{ course_name?: string; time_slot?: string; room_number?: string; day_of_week?: string; batch?: string }>;
+  courses?: Array<{ id: number; course_code: string; course_title: string; department?: string; batch?: string }>;
+  routine?: Array<{ id: number; course_name?: string; time_slot?: string; room_no?: string; room_number?: string; day_of_week?: string; batch?: string }>;
 }
 
 export const CRPanelView: React.FC = () => {
@@ -204,6 +205,27 @@ export const CRPanelView: React.FC = () => {
       success('Semester course enrolled in catalog!');
     },
     onError: (err: Error) => error(err.message || 'Failed to register course'),
+  });
+
+  // Delete Routine Mutation
+  const deleteRoutineMutation = useMutation({
+    mutationFn: (routineId: number) => apiClient.delete(`/academic/routine/${routineId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cr-academic'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-academic'] });
+      success('Routine period slot removed!');
+    },
+    onError: (err: Error) => error(err.message || 'Failed to remove routine slot'),
+  });
+
+  // Delete Course Mutation
+  const deleteCourseMutation = useMutation({
+    mutationFn: (courseId: number) => apiClient.delete(`/academic/courses/${courseId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cr-academic'] });
+      success('Course removed from catalog!');
+    },
+    onError: (err: Error) => error(err.message || 'Failed to remove course'),
   });
 
   if (!isCRorAdmin) {
@@ -584,7 +606,7 @@ export const CRPanelView: React.FC = () => {
               ) : (
                 <div className="flex flex-col divide-y divide-[#1F353C]/60">
                   {currentRoutines.map((r, idx) => (
-                    <div key={idx} className="py-3 flex items-center justify-between">
+                    <div key={r.id || idx} className="py-3 flex items-center justify-between group">
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-[14px] font-bold text-white">{r.course_name}</span>
@@ -594,9 +616,19 @@ export const CRPanelView: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-3 text-[12px] text-[#9BB2BC] mt-1">
                           <span>{r.time_slot}</span>
-                          <span>{r.room_number}</span>
+                          <span>{r.room_number || r.room_no}</span>
                         </div>
                       </div>
+
+                      {r.id && (
+                        <button
+                          onClick={() => deleteRoutineMutation.mutate(r.id)}
+                          className="p-1.5 rounded-[8px] text-[#9BB2BC] hover:text-[#F87171] hover:bg-[#F87171]/10 transition-colors cursor-pointer"
+                          title="Remove Slot"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -684,7 +716,7 @@ export const CRPanelView: React.FC = () => {
               ) : (
                 <div className="flex flex-col divide-y divide-[#1F353C]/60">
                   {currentCourses.map((c, idx) => (
-                    <div key={idx} className="py-3 flex items-center justify-between">
+                    <div key={c.id || idx} className="py-3 flex items-center justify-between group">
                       <div>
                         <div className="flex items-center gap-2">
                           <Badge variant="muted" size="xs">
@@ -696,6 +728,16 @@ export const CRPanelView: React.FC = () => {
                           {c.department || 'CSE'} • Batch {c.batch || '2024'}
                         </div>
                       </div>
+
+                      {c.id && (
+                        <button
+                          onClick={() => deleteCourseMutation.mutate(c.id)}
+                          className="p-1.5 rounded-[8px] text-[#9BB2BC] hover:text-[#F87171] hover:bg-[#F87171]/10 transition-colors cursor-pointer"
+                          title="Remove Course"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -48,6 +48,18 @@ export interface IncomingRequest {
   created_at: string;
 }
 
+export interface IncomingInvitation {
+  request_id: number;
+  project_id: number;
+  status: string;
+  project_title: string;
+  tech_stack?: string;
+  inviter_name: string;
+  inviter_id?: number;
+  inviter_email?: string;
+  created_at: string;
+}
+
 export interface MyRequest {
   project_id: number;
   status: string;
@@ -58,6 +70,7 @@ interface ProjectsApiResponse {
   success: boolean;
   projects: ProjectItem[];
   incomingRequests?: IncomingRequest[];
+  incomingInvitations?: IncomingInvitation[];
   myRequests?: MyRequest[];
 }
 
@@ -91,9 +104,31 @@ export const ProjectsView: React.FC = () => {
 
   const projects = data?.projects || [];
   const incomingRequests = data?.incomingRequests || [];
+  const incomingInvitations = data?.incomingInvitations || [];
   const myRequests = data?.myRequests || [];
 
   // Mutations
+  const acceptInvitationMutation = useMutation({
+    mutationFn: async (requestId: number) => {
+      return apiClient.put(`/projects/invitations/${requestId}/accept`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects-list'] });
+      success('Invitation accepted! You joined the project team.');
+    },
+    onError: (err: Error) => error(err.message || 'Failed to accept invitation'),
+  });
+
+  const rejectInvitationMutation = useMutation({
+    mutationFn: async (requestId: number) => {
+      return apiClient.delete(`/projects/invitations/${requestId}/reject`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects-list'] });
+      info('Project invitation declined.');
+    },
+    onError: (err: Error) => error(err.message || 'Failed to decline invitation'),
+  });
   const createProjectMutation = useMutation({
     mutationFn: async (payload: typeof formData) => {
       return apiClient.post<{ success: boolean; message?: string }>('/projects', payload);
@@ -263,6 +298,59 @@ export const ProjectsView: React.FC = () => {
                       leftIcon={<X className="w-3.5 h-3.5" />}
                       onClick={() => rejectRequestMutation.mutate(req.request_id)}
                       isLoading={rejectRequestMutation.isPending}
+                    >
+                      Decline
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Incoming Team Invitations for Logged-in Student */}
+        {incomingInvitations.length > 0 && (
+          <div className="bg-[#15242A] border border-[#38BDF8]/40 rounded-[18px] p-5 sm:p-6 shadow-[0_12px_32px_rgba(0,0,0,0.3)]">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#1F353C]/60">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#38BDF8] animate-pulse" />
+                <h3 className="text-[16px] font-bold text-white">Project Team Invitations</h3>
+              </div>
+              <Badge variant="info" size="xs">
+                {incomingInvitations.length} Pending
+              </Badge>
+            </div>
+
+            <div className="flex flex-col divide-y divide-[#1F353C]/60">
+              {incomingInvitations.map((inv) => (
+                <div key={inv.request_id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-[14px] font-semibold text-white">
+                      {inv.inviter_name}{' '}
+                      <span className="text-[12px] text-[#9BB2BC]">({inv.inviter_email || 'Project Lead'})</span>
+                    </span>
+                    <p className="text-[12.5px] text-[#9BB2BC] mt-0.5">
+                      Invited you to collaborate on: <strong className="text-[#38BDF8]">{inv.project_title}</strong>
+                      {inv.tech_stack && <span className="text-[12px] text-[#9BB2BC]"> ({inv.tech_stack})</span>}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      leftIcon={<Check className="w-3.5 h-3.5" />}
+                      onClick={() => acceptInvitationMutation.mutate(inv.request_id)}
+                      isLoading={acceptInvitationMutation.isPending}
+                    >
+                      Accept Invite
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      leftIcon={<X className="w-3.5 h-3.5" />}
+                      onClick={() => rejectInvitationMutation.mutate(inv.request_id)}
+                      isLoading={rejectInvitationMutation.isPending}
                     >
                       Decline
                     </Button>

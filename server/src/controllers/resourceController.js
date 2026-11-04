@@ -142,6 +142,51 @@ export const rejectResource = async (req, res) => {
   }
 };
 
+// Update Resource (Uploader or CR/Admin)
+export const updateResource = async (req, res) => {
+  try {
+    const { materialId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { title, file_url, category, course_code } = req.body;
+
+    const [materials] = await db.execute("SELECT id, title, uploaded_by FROM materials WHERE id = ?", [materialId]);
+    if (materials.length === 0) {
+      return res.status(404).json({ success: false, message: "Resource not found." });
+    }
+
+    const isOwner = materials[0].uploaded_by === userId;
+    const isStaff = userRole === "admin" || userRole === "cr";
+
+    if (!isOwner && !isStaff) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: You are not authorized to edit this resource.",
+      });
+    }
+
+    await db.execute(
+      `UPDATE materials 
+       SET title = COALESCE(?, title),
+           file_url = COALESCE(?, file_url),
+           category = COALESCE(?, category),
+           course_code = COALESCE(?, course_code)
+       WHERE id = ?`,
+      [
+        title ? title.trim() : null,
+        file_url ? file_url.trim() : null,
+        category ? category.trim() : null,
+        course_code ? course_code.trim() : null,
+        materialId,
+      ]
+    );
+
+    res.status(200).json({ success: true, message: "Resource updated successfully!" });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 // Delete Resource (Uploader or CR/Admin)
 export const deleteResource = async (req, res) => {
   try {

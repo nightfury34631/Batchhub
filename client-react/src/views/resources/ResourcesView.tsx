@@ -10,6 +10,7 @@ import {
   BookMarked,
   AlertCircle,
   Upload,
+  Trash2,
 } from 'lucide-react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -89,6 +90,16 @@ export const ResourcesView: React.FC = () => {
       );
     },
     onError: (err: Error) => error(err.message || 'Failed to upload material'),
+  });
+
+  const deleteResourceMutation = useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/resources/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resources-list'] });
+      queryClient.invalidateQueries({ queryKey: ['cr-resources'] });
+      success('Resource deleted from library!');
+    },
+    onError: (err: Error) => error(err.message || 'Failed to delete resource'),
   });
 
   // Filtered materials
@@ -259,19 +270,31 @@ export const ResourcesView: React.FC = () => {
 
                 {/* Footer and Download link */}
                 <div className="pt-3 border-t border-[#1F353C]/60 flex items-center justify-between text-[12px] text-[#9BB2BC]">
-                  <span className="truncate max-w-[140px]">
+                  <span className="truncate max-w-[130px]">
                     By {mat.uploader_name || 'Student'}
                   </span>
 
-                  <a
-                    href={mat.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[#00D084] hover:underline font-semibold"
-                  >
-                    <span>Access Material</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+                  <div className="flex items-center gap-2.5">
+                    <a
+                      href={mat.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[#00D084] hover:underline font-semibold"
+                    >
+                      <span>Access Material</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+
+                    {(mat.uploaded_by === user?.id || isCRorAdmin) && (
+                      <button
+                        onClick={() => deleteResourceMutation.mutate(mat.id)}
+                        className="p-1 rounded text-[#9BB2BC] hover:text-[#F87171] hover:bg-[#F87171]/10 transition-colors cursor-pointer"
+                        title="Delete Material"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
