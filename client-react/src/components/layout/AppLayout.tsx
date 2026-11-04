@@ -19,7 +19,6 @@ const ROUTE_TITLES: Record<string, string> = {
   '/members': 'Batch Members',
   '/profile': 'My Profile',
   '/cr-panel': 'Cohort Administration',
-  '/showcase': 'Component Showcase',
 };
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {

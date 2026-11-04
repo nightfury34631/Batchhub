@@ -17,7 +17,6 @@ import { ResourcesView } from './views/resources/ResourcesView';
 import { MembersView } from './views/members/MembersView';
 import { ProfileView } from './views/profile/ProfileView';
 import { CRPanelView } from './views/cr-panel/CRPanelView';
-import { ShowcaseView } from './views/showcase/ShowcaseView';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,8 +36,8 @@ export const App: React.FC = () => {
       <ToastProvider>
         <BrowserRouter>
           <Routes>
-            {/* Design Showcase Route */}
-            <Route path="/showcase" element={<ShowcaseView />} />
+            {/* Redirect legacy showcase preview to primary flight deck */}
+            <Route path="/showcase" element={<Navigate to="/dashboard" replace />} />
 
             {/* Public Authentication Routes */}
             <Route

@@ -48,13 +48,6 @@ export const Topbar: React.FC<TopbarProps> = ({
       },
     },
     {
-      id: 'showcase',
-      label: 'Design Showcase',
-      onClick: () => {
-        navigate('/showcase');
-      },
-    },
-    {
       id: 'logout',
       label: 'Sign Out',
       danger: true,

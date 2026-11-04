@@ -10,7 +10,6 @@ import {
   FolderGit2,
   BookOpen,
   Settings,
-  Sparkles,
   ArrowRight,
   Loader2,
 } from 'lucide-react';
@@ -37,13 +36,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
 
   const staticActions = [
     { title: 'Dashboard', subtitle: 'Academic Flight Deck', path: '/dashboard', icon: LayoutGrid },
-    { title: 'Showcase', subtitle: 'Midnight Campus Design Showcase', path: '/showcase', icon: Sparkles },
     { title: 'Tasks & Deadlines', subtitle: 'Assignments & Submissions', path: '/tasks', icon: CheckSquare },
     { title: 'Events', subtitle: 'Schedules & Midterm Dates', path: '/events', icon: Calendar },
     { title: 'Announcements', subtitle: 'Notices & Department News', path: '/announcements', icon: Megaphone },
     { title: 'Projects', subtitle: 'Batch Team Collaboration', path: '/projects', icon: FolderGit2 },
     { title: 'Resources', subtitle: 'Lecture Notes & Slides', path: '/resources', icon: BookOpen },
-    { title: 'Settings', subtitle: 'Profile & Credentials', path: '/profile', icon: Settings },
+    { title: 'Profile', subtitle: 'My Account & Credentials', path: '/profile', icon: Settings },
   ];
 
   useEffect(() => {

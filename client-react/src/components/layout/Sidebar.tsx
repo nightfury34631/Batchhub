@@ -12,7 +12,6 @@ import {
   Shield,
   LogOut,
   GraduationCap,
-  Sparkles,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { clsx } from 'clsx';
@@ -22,15 +21,19 @@ export interface SidebarProps {
   onClose?: () => void;
 }
 
+interface NavItem {
+  name: string;
+  to: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: string;
+}
+
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user, logout } = useAuthStore();
   const isCRorAdmin = user?.role === 'cr' || user?.role === 'admin';
 
-  const baseNavItems = [
+  const baseNavItems: NavItem[] = [
     { name: 'Dashboard', to: '/dashboard', icon: LayoutGrid },
-    ...(import.meta.env.DEV
-      ? [{ name: 'Showcase', to: '/showcase', icon: Sparkles, badge: 'Dev' }]
-      : []),
     { name: 'Members', to: '/members', icon: Users },
     { name: 'Events', to: '/events', icon: Calendar },
     { name: 'Announcements', to: '/announcements', icon: Megaphone },
