@@ -184,7 +184,7 @@ export const ShowcaseView: React.FC = () => {
   ];
 
   return (
-    <AppLayout title="Academic Flight Deck">
+    <AppLayout title="Component Showcase">
       <div className="flex flex-col gap-6 pb-12 max-w-6xl mx-auto">
         {/* Top Switcher Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#1F353C]/80">

@@ -9,7 +9,7 @@
     "server": "npm --prefix server start",
     "build": "npm --prefix client-react run build",
     "preview": "npm --prefix client-react run preview",
-    "test": "node server/test/dashboard_fixes.test.js && node server/test/tasks_phase_implementation.test.js && node server/test/security_and_auth.test.js && node server/test/phase2_features.test.js"
+    "test": "node server/test/dashboard_fixes.test.js && node server/test/tasks_phase_implementation.test.js && node server/test/security_and_auth.test.js && node server/test/phase2_features.test.js && node server/test/backend_gap_completion.test.js"
   },
   "devDependencies": {
     "concurrently": "^9.2.5"

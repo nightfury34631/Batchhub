@@ -191,7 +191,7 @@ export const ProjectsView: React.FC = () => {
   };
 
   return (
-    <AppLayout title="Projects & Team Collaboration">
+    <AppLayout title="Project Hub">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

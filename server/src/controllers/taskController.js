@@ -238,6 +238,56 @@ export const rejectTask = async (req, res) => {
   }
 };
 
+// Update Task (Creator or CR/Admin)
+export const updateTask = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { title, description, course_code, due_date, priority, department } = req.body;
+
+    const [tasks] = await db.execute("SELECT id, title, created_by FROM tasks WHERE id = ?", [taskId]);
+    if (tasks.length === 0) {
+      return res.status(404).json({ success: false, message: "Task not found." });
+    }
+
+    const isOwner = tasks[0].created_by === userId;
+    const isStaff = userRole === "admin" || userRole === "cr";
+
+    if (!isOwner && !isStaff) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: You are not authorized to edit this task.",
+      });
+    }
+
+    await db.execute(
+      `UPDATE tasks 
+       SET title = COALESCE(?, title), 
+           description = COALESCE(?, description), 
+           course_code = COALESCE(?, course_code), 
+           due_date = COALESCE(?, due_date), 
+           priority = COALESCE(?, priority), 
+           department = COALESCE(?, department) 
+       WHERE id = ?`,
+      [
+        title ? title.trim() : null,
+        description !== undefined ? description.trim() : null,
+        course_code ? course_code.trim() : null,
+        due_date || null,
+        priority || null,
+        department || null,
+        taskId,
+      ]
+    );
+
+    res.status(200).json({ success: true, message: "Task updated successfully!" });
+  } catch (error) {
+    console.error("Update Task Error:", error.message);
+    res.status(500).json({ success: false, message: "Failed to update task." });
+  }
+};
+
 // Delete Task (Strict Ownership Verification)
 export const deleteTask = async (req, res) => {
   try {

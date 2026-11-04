@@ -2,6 +2,8 @@ import express from "express";
 import {
   getEvents,
   createEvent,
+  updateEvent,
+  deleteEvent,
   approveEvent,
   rejectEvent,
 } from "../controllers/eventController.js";
@@ -10,6 +12,8 @@ import { verifyToken, requireRole } from "../middleware/authMiddleware.js";
 const router = express.Router();
 router.get("/", verifyToken, getEvents);
 router.post("/", verifyToken, createEvent);
+router.put("/:eventId", verifyToken, updateEvent);
+router.delete("/:eventId", verifyToken, deleteEvent);
 router.put("/:eventId/approve", verifyToken, requireRole("cr", "admin"), approveEvent);
 router.delete("/:eventId/reject", verifyToken, requireRole("cr", "admin"), rejectEvent);
 

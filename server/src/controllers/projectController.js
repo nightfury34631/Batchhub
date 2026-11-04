@@ -460,6 +460,50 @@ export const rejectJoinRequest = async (req, res) => {
   }
 };
 
+// Update Project (Owner or Admin)
+export const updateProject = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { title, description, tech_stack, repo_url, team_members, department } = req.body;
+
+    const [projects] = await db.execute("SELECT id, created_by FROM projects WHERE id = ?", [projectId]);
+    if (projects.length === 0) {
+      return res.status(404).json({ success: false, message: "Project not found." });
+    }
+
+    if (projects[0].created_by !== userId && userRole !== "admin") {
+      return res.status(403).json({ success: false, message: "Forbidden: Only the owner can edit this project." });
+    }
+
+    await db.execute(
+      `UPDATE projects 
+       SET title = COALESCE(?, title),
+           description = COALESCE(?, description),
+           tech_stack = COALESCE(?, tech_stack),
+           repo_url = COALESCE(?, repo_url),
+           team_members = COALESCE(?, team_members),
+           department = COALESCE(?, department)
+       WHERE id = ?`,
+      [
+        title ? title.trim() : null,
+        description !== undefined ? description.trim() : null,
+        tech_stack ? tech_stack.trim() : null,
+        repo_url !== undefined ? repo_url.trim() : null,
+        team_members !== undefined ? team_members.trim() : null,
+        department ? department.trim() : null,
+        projectId,
+      ]
+    );
+
+    res.status(200).json({ success: true, message: "Project updated successfully!" });
+  } catch (error) {
+    console.error("Update Project Error:", error.message);
+    res.status(500).json({ success: false, message: "Failed to update project." });
+  }
+};
+
 // Delete Project (Owner or Admin)
 export const deleteProject = async (req, res) => {
   try {

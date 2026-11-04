@@ -62,8 +62,9 @@ export const addRoutine = async (req, res) => {
     if (req.user.role !== "cr" && req.user.role !== "admin") {
       return res.status(403).json({ success: false, message: "Unauthorized." });
     }
-    const { batch, day_of_week, time_slot, course_name, room_no } = req.body;
-    if (!batch || !day_of_week || !time_slot || !course_name || !room_no) {
+    const { batch, day_of_week, time_slot, course_name } = req.body;
+    const room = req.body.room_no || req.body.room_number;
+    if (!batch || !day_of_week || !time_slot || !course_name || !room) {
       return res.status(400).json({ success: false, message: "All routine fields are required." });
     }
     await db.execute(
@@ -73,12 +74,38 @@ export const addRoutine = async (req, res) => {
         day_of_week.trim(),
         time_slot.trim(),
         course_name.trim(),
-        room_no.trim(),
+        room.trim(),
       ],
     );
     res
       .status(201)
       .json({ success: true, message: "Routine slot added successfully!" });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const deleteRoutine = async (req, res) => {
+  try {
+    if (req.user.role !== "cr" && req.user.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Unauthorized." });
+    }
+    const { routineId } = req.params;
+    await db.execute("DELETE FROM routines WHERE id = ?", [routineId]);
+    res.status(200).json({ success: true, message: "Routine slot deleted successfully!" });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const deleteCourse = async (req, res) => {
+  try {
+    if (req.user.role !== "cr" && req.user.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Unauthorized." });
+    }
+    const { courseId } = req.params;
+    await db.execute("DELETE FROM semester_courses WHERE id = ?", [courseId]);
+    res.status(200).json({ success: true, message: "Course deleted successfully!" });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

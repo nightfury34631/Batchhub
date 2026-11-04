@@ -196,3 +196,82 @@ export const rejectEvent = async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to reject event." });
   }
 };
+
+// Update Event (Creator or CR/Admin)
+export const updateEvent = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { title, description, event_date, location, department } = req.body;
+
+    const [events] = await db.execute("SELECT id, created_by FROM events WHERE id = ?", [eventId]);
+    if (events.length === 0) {
+      return res.status(404).json({ success: false, message: "Event not found." });
+    }
+
+    const isOwner = events[0].created_by === userId;
+    const isStaff = userRole === "admin" || userRole === "cr";
+
+    if (!isOwner && !isStaff) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: You are not authorized to edit this event.",
+      });
+    }
+
+    await db.execute(
+      `UPDATE events 
+       SET title = COALESCE(?, title), 
+           description = COALESCE(?, description), 
+           event_date = COALESCE(?, event_date), 
+           location = COALESCE(?, location), 
+           department = COALESCE(?, department) 
+       WHERE id = ?`,
+      [
+        title ? title.trim() : null,
+        description !== undefined ? description.trim() : null,
+        event_date || null,
+        location ? location.trim() : null,
+        department ? department.trim() : null,
+        eventId,
+      ]
+    );
+
+    res.status(200).json({ success: true, message: "Event updated successfully!" });
+  } catch (error) {
+    console.error("Update Event Error:", error.message);
+    res.status(500).json({ success: false, message: "Failed to update event." });
+  }
+};
+
+// Delete Event (Creator or CR/Admin)
+export const deleteEvent = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    const [events] = await db.execute("SELECT id, created_by FROM events WHERE id = ?", [eventId]);
+    if (events.length === 0) {
+      return res.status(404).json({ success: false, message: "Event not found." });
+    }
+
+    const isOwner = events[0].created_by === userId;
+    const isStaff = userRole === "admin" || userRole === "cr";
+
+    if (!isOwner && !isStaff) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: You are not authorized to delete this event.",
+      });
+    }
+
+    await db.execute("DELETE FROM events WHERE id = ?", [eventId]);
+
+    res.status(200).json({ success: true, message: "Event deleted successfully!" });
+  } catch (error) {
+    console.error("Delete Event Error:", error.message);
+    res.status(500).json({ success: false, message: "Failed to delete event." });
+  }
+};

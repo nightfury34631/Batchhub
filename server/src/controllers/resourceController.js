@@ -141,3 +141,33 @@ export const rejectResource = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// Delete Resource (Uploader or CR/Admin)
+export const deleteResource = async (req, res) => {
+  try {
+    const { materialId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    const [materials] = await db.execute("SELECT id, title, uploaded_by FROM materials WHERE id = ?", [materialId]);
+    if (materials.length === 0) {
+      return res.status(404).json({ success: false, message: "Resource not found." });
+    }
+
+    const isOwner = materials[0].uploaded_by === userId;
+    const isStaff = userRole === "admin" || userRole === "cr";
+
+    if (!isOwner && !isStaff) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: You are not authorized to delete this resource.",
+      });
+    }
+
+    await db.execute("DELETE FROM materials WHERE id = ?", [materialId]);
+
+    res.status(200).json({ success: true, message: "Resource deleted successfully." });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

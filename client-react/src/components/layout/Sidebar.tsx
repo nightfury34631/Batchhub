@@ -26,16 +26,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user, logout } = useAuthStore();
   const isCRorAdmin = user?.role === 'cr' || user?.role === 'admin';
 
-  const navItems = [
+  const baseNavItems = [
     { name: 'Dashboard', to: '/dashboard', icon: LayoutGrid },
-    { name: 'Showcase', to: '/showcase', icon: Sparkles, badge: 'Phase 2' },
-    { name: 'Students', to: '/members', icon: Users },
+    ...(import.meta.env.DEV
+      ? [{ name: 'Showcase', to: '/showcase', icon: Sparkles, badge: 'Dev' }]
+      : []),
+    { name: 'Members', to: '/members', icon: Users },
     { name: 'Events', to: '/events', icon: Calendar },
     { name: 'Announcements', to: '/announcements', icon: Megaphone },
     { name: 'Tasks & Deadlines', to: '/tasks', icon: CheckSquare },
     { name: 'Projects', to: '/projects', icon: FolderGit2 },
     { name: 'Resources', to: '/resources', icon: BookOpen },
-    { name: 'Settings', to: '/profile', icon: Settings },
+    { name: 'Profile', to: '/profile', icon: Settings },
   ];
 
   return (
@@ -73,7 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               Main Workspace
             </span>
             <nav className="flex flex-col gap-1">
-              {navItems.map((item) => {
+              {baseNavItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <NavLink

@@ -169,7 +169,7 @@ export const EventsView: React.FC = () => {
   };
 
   return (
-    <AppLayout title="Events & Schedules">
+    <AppLayout title="Campus Events">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

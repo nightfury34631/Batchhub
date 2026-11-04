@@ -153,7 +153,7 @@ export const ProfileView: React.FC = () => {
   };
 
   return (
-    <AppLayout title="Profile & Account Settings">
+    <AppLayout title="My Profile">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div>
