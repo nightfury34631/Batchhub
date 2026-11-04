@@ -1,13 +1,13 @@
 {
   "name": "batchhub",
   "version": "2.0.0",
-  "description": "BatchHub — Centralized Academic Management & Collaboration Platform",
+  "description": "BatchHub \u2014 Centralized Academic Management & Collaboration Platform",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "dev": "node init && concurrently \"npm run server\" \"npm run client\"",
     "client": "npm --prefix client-react run dev",
     "server": "npm --prefix server start",
-    "build": "npm --prefix client-react run build",
+    "build": "node init && npm --prefix client-react run build",
     "preview": "npm --prefix client-react run preview",
     "seed:demo": "node server/scripts/seed_demo_data.js",
     "test": "node server/test/dashboard_fixes.test.js && node server/test/tasks_phase_implementation.test.js && node server/test/security_and_auth.test.js && node server/test/phase2_features.test.js && node server/test/backend_gap_completion.test.js && node server/test/production_readiness.test.js && node server/test/final_improvements.test.js && node server/test/reliability_and_transactions.test.js && node server/test/e2e_browser_routes_and_roles.js"
