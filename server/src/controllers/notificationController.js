@@ -1,6 +1,6 @@
 import db from "../config/db.js";
 
-// Helper utility to safely create a notification for any user
+// Helper utility to safely create a notification for any user with deduplication & transaction support
 export const createNotification = async ({
   userId,
   type,
@@ -8,17 +8,36 @@ export const createNotification = async ({
   message,
   relatedEntityType = null,
   relatedEntityId = null,
+  conn = null,
 }) => {
+  const executor = conn || db;
   try {
     if (!userId || !title || !message) return null;
-    const [result] = await db.execute(
+
+    const cleanTitle = title.trim();
+    const cleanMessage = message.trim();
+    const cleanType = type || "system";
+
+    // Deduplication check: prevent identical unread notification within 60 seconds
+    const [recent] = await executor.execute(
+      `SELECT id FROM notifications 
+       WHERE user_id = ? AND type = ? AND title = ? AND is_read = 0 
+         AND created_at >= NOW() - INTERVAL 1 MINUTE
+       LIMIT 1`,
+      [userId, cleanType, cleanTitle]
+    );
+    if (recent.length > 0) {
+      return recent[0].id;
+    }
+
+    const [result] = await executor.execute(
       `INSERT INTO notifications (user_id, type, title, message, related_entity_type, related_entity_id, is_read)
        VALUES (?, ?, ?, ?, ?, ?, 0)`,
       [
         userId,
-        type || "system",
-        title.trim(),
-        message.trim(),
+        cleanType,
+        cleanTitle,
+        cleanMessage,
         relatedEntityType,
         relatedEntityId,
       ]

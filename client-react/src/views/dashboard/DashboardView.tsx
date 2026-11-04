@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -10,6 +10,7 @@ import {
   BookOpen,
   ArrowRight,
   ChevronRight,
+  ChevronLeft,
   Sparkles,
   Pin,
   Check,
@@ -51,11 +52,28 @@ interface NoticeItem {
   created_at: string;
 }
 
+interface RoutineSlot {
+  id?: number;
+  course_name?: string;
+  time_slot?: string;
+  room_no?: string;
+  room_number?: string;
+  day_of_week?: string;
+}
+
+interface AcademicResponse {
+  courses?: Array<{ id: number; course_code: string; course_title: string; department?: string; batch?: string }>;
+  routine?: RoutineSlot[];
+}
+
 export const DashboardView: React.FC = () => {
   const { user } = useAuthStore();
   const { success, error } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Dynamic calendar state
+  const [calendarDate, setCalendarDate] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   // 1. Fetch Tasks
@@ -79,7 +97,7 @@ export const DashboardView: React.FC = () => {
   // 4. Fetch Academic Routine
   const { data: academicData } = useQuery({
     queryKey: ['dashboard-academic'],
-    queryFn: () => apiClient.get<Record<string, unknown>>('/academic'),
+    queryFn: () => apiClient.get<AcademicResponse>('/academic'),
   });
 
   // Task Completion Mutation
@@ -104,8 +122,9 @@ export const DashboardView: React.FC = () => {
   const tasks = tasksData?.tasks || [];
   const events = eventsData?.events || [];
   const notices = noticesData?.notices || [];
+  const routinesList = academicData?.routine || [];
 
-  // Metrics computation
+  // Metrics computation from real database records
   const now = new Date();
   const totalTasksCount = tasks.length;
   const completedTasksCount = tasks.filter((t) => Boolean(t.is_completed)).length;
@@ -116,11 +135,92 @@ export const DashboardView: React.FC = () => {
   const activeEvents = events.slice(0, 4);
   const pinnedNotices = notices.filter((n) => Boolean(n.is_pinned)).slice(0, 2);
 
-  // Extract routine info if available
-  const routinesList = Array.isArray(academicData?.routine)
-    ? (academicData?.routine as Array<{ course_name?: string; time_slot?: string; room_number?: string; day_of_week?: string }>)
-    : [];
-  const nextClass = routinesList.length > 0 ? routinesList[0] : null;
+  // Dynamic next upcoming class computed from actual time and weekly routine records
+  const nextClass = useMemo(() => {
+    if (!routinesList || routinesList.length === 0) return null;
+
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const currentDayIndex = now.getDay();
+    const currentDayName = daysOfWeek[currentDayIndex];
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const parseEndTimeMinutes = (timeSlot?: string): number => {
+      if (!timeSlot) return 24 * 60;
+      const parts = timeSlot.split('-');
+      if (parts.length < 2) return 24 * 60;
+      const endStr = parts[1].trim();
+      const match = endStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+      if (!match) return 24 * 60;
+      let h = parseInt(match[1], 10);
+      const m = parseInt(match[2], 10);
+      const meridiem = (match[3] || '').toUpperCase();
+      if (meridiem === 'PM' && h < 12) h += 12;
+      if (meridiem === 'AM' && h === 12) h = 0;
+      return h * 60 + m;
+    };
+
+    // 1. Today's remaining classes
+    const todayClasses = routinesList.filter(
+      (r) => r.day_of_week?.toLowerCase() === currentDayName.toLowerCase()
+    );
+    for (const c of todayClasses) {
+      if (parseEndTimeMinutes(c.time_slot) > currentMinutes) {
+        return { ...c, dayLabel: 'Today' };
+      }
+    }
+
+    // 2. Upcoming days in routine
+    for (let offset = 1; offset <= 7; offset++) {
+      const nextDayIndex = (currentDayIndex + offset) % 7;
+      const nextDayName = daysOfWeek[nextDayIndex];
+      const dayClasses = routinesList.filter(
+        (r) => r.day_of_week?.toLowerCase() === nextDayName.toLowerCase()
+      );
+      if (dayClasses.length > 0) {
+        return {
+          ...dayClasses[0],
+          dayLabel: offset === 1 ? 'Tomorrow' : nextDayName,
+        };
+      }
+    }
+
+    return { ...routinesList[0], dayLabel: routinesList[0].day_of_week || 'Routine' };
+  }, [routinesList, now]);
+
+  // Dynamic Calendar Calculation
+  const calYear = calendarDate.getFullYear();
+  const calMonth = calendarDate.getMonth();
+  const calMonthName = calendarDate.toLocaleString('default', { month: 'long' });
+  const daysInCalMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
+
+  const handlePrevMonth = () => {
+    setCalendarDate(new Date(calYear, calMonth - 1, 1));
+    setSelectedDay(null);
+  };
+
+  const handleNextMonth = () => {
+    setCalendarDate(new Date(calYear, calMonth + 1, 1));
+    setSelectedDay(null);
+  };
+
+  // Calendar Day Indicators
+  const dayHasIndicator = (day: number) => {
+    const hasEv = events.some((e) => {
+      const d = new Date(e.event_date);
+      return d.getFullYear() === calYear && d.getMonth() === calMonth && d.getDate() === day;
+    });
+    const hasTask = tasks.some((t) => {
+      const d = new Date(t.due_date);
+      return d.getFullYear() === calYear && d.getMonth() === calMonth && d.getDate() === day;
+    });
+    return hasEv || hasTask;
+  };
+
+  const isCurrentToday = (day: number) => {
+    const today = new Date();
+    return today.getFullYear() === calYear && today.getMonth() === calMonth && today.getDate() === day;
+  };
 
   return (
     <AppLayout title="Academic Flight Deck">
@@ -134,7 +234,7 @@ export const DashboardView: React.FC = () => {
             <div className="flex flex-col">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[11px] uppercase font-bold tracking-wider text-[#00D084]">
-                  Academic Year 2026
+                  {user?.batch ? `Batch ${user.batch}` : `Academic Year ${now.getFullYear()}`}
                 </span>
                 <span className="text-[#1F353C]">•</span>
                 <span className="text-[12px] text-[#9BB2BC]">
@@ -192,7 +292,7 @@ export const DashboardView: React.FC = () => {
 
         {/* 2. Primary 2-Column Asymmetric Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
-          {/* Left Column (5 cols): Academic Next Up, Mini Calendar & Events */}
+          {/* Left Column (5 cols): Academic Next Up, Dynamic Mini Calendar & Events */}
           <div className="lg:col-span-5 flex flex-col gap-4 sm:gap-5">
             {/* Academic Next Up Session Flight Deck */}
             <div className="bg-[#15242A] border border-[#1F353C] rounded-[16px] p-4 sm:p-5 shadow-[0_4px_16px_rgba(0,0,0,0.18)]">
@@ -203,27 +303,42 @@ export const DashboardView: React.FC = () => {
                     Next Up on Routine
                   </span>
                 </div>
-                <Badge variant="mint" size="xs">
-                  {nextClass?.day_of_week || 'Today'}
-                </Badge>
+                {nextClass ? (
+                  <Badge variant="mint" size="xs">
+                    {nextClass.dayLabel}
+                  </Badge>
+                ) : (
+                  <Badge variant="muted" size="xs">
+                    No Schedule
+                  </Badge>
+                )}
               </div>
 
-              <div className="mt-3">
-                <h3 className="text-[15px] font-bold text-white tracking-tight">
-                  {nextClass?.course_name || 'CSE-3201: Operating Systems & System Programming'}
-                </h3>
-                <div className="flex items-center gap-2 text-[12px] text-[#9BB2BC] mt-1.5">
-                  <Clock className="w-3.5 h-3.5 text-[#38BDF8]" />
-                  <span>{nextClass?.time_slot || '11:30 AM - 01:00 PM'}</span>
+              {nextClass ? (
+                <div className="mt-3">
+                  <h3 className="text-[15px] font-bold text-white tracking-tight">
+                    {nextClass.course_name}
+                  </h3>
+                  <div className="flex items-center gap-2 text-[12px] text-[#9BB2BC] mt-1.5">
+                    <Clock className="w-3.5 h-3.5 text-[#38BDF8]" />
+                    <span>{nextClass.time_slot || 'Time not specified'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[12px] text-[#9BB2BC] mt-1">
+                    <MapPin className="w-3.5 h-3.5 text-[#38BDF8]" />
+                    <span>Room: {nextClass.room_no || nextClass.room_number || 'TBA'}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-[12px] text-[#9BB2BC] mt-1">
-                  <MapPin className="w-3.5 h-3.5 text-[#38BDF8]" />
-                  <span>{nextClass?.room_number || 'Room 402, Dept of CSE'}</span>
+              ) : (
+                <div className="py-5 text-center flex flex-col items-center justify-center gap-1">
+                  <p className="text-[13px] text-[#9BB2BC]">No routine slots scheduled for your cohort.</p>
+                  <p className="text-[11.5px] text-[#9BB2BC]/70">Class Representatives can register periods in the CR Panel.</p>
                 </div>
-              </div>
+              )}
 
               <div className="pt-3 mt-3 border-t border-[#1F353C]/60 flex items-center justify-between text-[11.5px]">
-                <span className="text-[#9BB2BC]">Instructor: Faculty Advisor</span>
+                <span className="text-[#9BB2BC]">
+                  {user?.department ? `${user.department} Department` : 'Academic Schedule'}
+                </span>
                 <Link
                   to="/cr-panel"
                   className="text-[#00D084] hover:underline font-medium inline-flex items-center gap-1"
@@ -233,14 +348,41 @@ export const DashboardView: React.FC = () => {
               </div>
             </div>
 
-            {/* Interactive Mini Calendar */}
+            {/* Interactive Dynamic Mini Calendar */}
             <div className="bg-[#15242A] border border-[#1F353C] rounded-[16px] p-4 sm:p-5 shadow-[0_4px_16px_rgba(0,0,0,0.18)]">
               <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[#1F353C]/60">
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="w-4 h-4 text-[#00D084]" />
-                  <h3 className="text-[14.5px] font-bold text-white">November 2026</h3>
+                  <h3 className="text-[14.5px] font-bold text-white">
+                    {calMonthName} {calYear}
+                  </h3>
                 </div>
-                <span className="text-[11px] text-[#9BB2BC]">Cohort Schedule</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handlePrevMonth}
+                    title="Previous Month"
+                    className="p-1 rounded-[6px] hover:bg-[#192C34] text-[#9BB2BC] hover:text-white transition-colors cursor-pointer"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCalendarDate(new Date());
+                      setSelectedDay(null);
+                    }}
+                    title="Today"
+                    className="px-2 py-0.5 text-[11px] font-semibold text-[#00D084] hover:bg-[#192C34] rounded-[6px] transition-colors cursor-pointer"
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={handleNextMonth}
+                    title="Next Month"
+                    className="p-1 rounded-[6px] hover:bg-[#192C34] text-[#9BB2BC] hover:text-white transition-colors cursor-pointer"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-7 gap-1 text-center select-none text-[11.5px]">
@@ -249,10 +391,18 @@ export const DashboardView: React.FC = () => {
                     {d}
                   </div>
                 ))}
-                {Array.from({ length: 30 }, (_, i) => i + 1).map((day) => {
+
+                {/* Leading Blank Cells */}
+                {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                  <div key={`blank-${i}`} className="py-1.5" />
+                ))}
+
+                {/* Actual Days of the Month */}
+                {Array.from({ length: daysInCalMonth }, (_, i) => i + 1).map((day) => {
                   const isSelected = selectedDay === day;
-                  const hasEvent = [4, 10, 15, 22, 28].includes(day);
-                  const isToday = day === 4;
+                  const hasIndicator = dayHasIndicator(day);
+                  const isTodayDate = isCurrentToday(day);
+
                   return (
                     <button
                       key={day}
@@ -260,13 +410,13 @@ export const DashboardView: React.FC = () => {
                       className={`relative py-1.5 rounded-[8px] font-medium transition-all cursor-pointer flex flex-col items-center justify-center ${
                         isSelected
                           ? 'bg-[#00D084] text-[#0B1316] font-bold shadow-[0_0_12px_rgba(0,208,132,0.4)] ring-2 ring-[#00D084]/40'
-                          : isToday
+                          : isTodayDate
                           ? 'border border-[#00D084]/60 text-white hover:bg-[#192C34]'
                           : 'text-[#D2DFE5] hover:bg-[#192C34]'
                       }`}
                     >
                       <span>{day}</span>
-                      {hasEvent && !isSelected && (
+                      {hasIndicator && !isSelected && (
                         <span className="w-1.5 h-1.5 rounded-full bg-[#00D084] mt-0.5" />
                       )}
                     </button>

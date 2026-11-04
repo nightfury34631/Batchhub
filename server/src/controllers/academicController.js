@@ -53,6 +53,12 @@ export const addCourse = async (req, res) => {
       .status(201)
       .json({ success: true, message: "Course added successfully!", courseId: result.insertId });
   } catch (error) {
+    if (error.code === "ER_DUP_ENTRY" || error.errno === 1062) {
+      return res.status(409).json({
+        success: false,
+        message: "This course is already registered for this batch and department.",
+      });
+    }
     res.status(500).json({ success: false, error: error.message });
   }
 };
@@ -81,6 +87,12 @@ export const addRoutine = async (req, res) => {
       .status(201)
       .json({ success: true, message: "Routine slot added successfully!", routineId: result.insertId });
   } catch (error) {
+    if (error.code === "ER_DUP_ENTRY" || error.errno === 1062) {
+      return res.status(409).json({
+        success: false,
+        message: "A routine slot already exists for this room, day, time, and batch.",
+      });
+    }
     res.status(500).json({ success: false, error: error.message });
   }
 };

@@ -15,6 +15,7 @@ router.post("/", verifyToken, uploadResource);
 router.put("/:materialId", verifyToken, updateResource);
 router.delete("/:materialId", verifyToken, deleteResource);
 router.put("/:materialId/approve", verifyToken, requireRole("cr", "admin"), approveResource);
+router.put("/:materialId/reject", verifyToken, requireRole("cr", "admin"), rejectResource);
 router.delete("/:materialId/reject", verifyToken, requireRole("cr", "admin"), rejectResource);
 
 export default router;

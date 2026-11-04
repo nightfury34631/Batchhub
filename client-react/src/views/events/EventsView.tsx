@@ -10,6 +10,8 @@ import {
   X,
   ShieldCheck,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -53,6 +55,7 @@ export const EventsView: React.FC = () => {
   // State & Filter
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'pending'>('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
+  const [calendarDate, setCalendarDate] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   // Modals
@@ -149,11 +152,16 @@ export const EventsView: React.FC = () => {
     }
 
     if (selectedDay !== null && activeTab === 'upcoming') {
-      list = list.filter((ev) => new Date(ev.event_date).getDate() === selectedDay);
+      const year = calendarDate.getFullYear();
+      const month = calendarDate.getMonth();
+      list = list.filter((ev) => {
+        const d = new Date(ev.event_date);
+        return d.getFullYear() === year && d.getMonth() === month && d.getDate() === selectedDay;
+      });
     }
 
     return list;
-  }, [activeTab, upcomingEvents, pastEvents, pendingEvents, searchQuery, selectedDay]);
+  }, [activeTab, upcomingEvents, pastEvents, pendingEvents, searchQuery, selectedDay, calendarDate]);
 
   const handleSubmitCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,20 +212,60 @@ export const EventsView: React.FC = () => {
           {/* Left Column (4 cols): Mini Calendar & Date Filter */}
           <div className="lg:col-span-4 flex flex-col gap-5">
             <div className="bg-[#15242A] border border-[#1F353C] rounded-[18px] p-5 shadow-[0_8px_24px_rgba(0,0,0,0.2)]">
-              <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#1F353C]/60">
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#1F353C]/60">
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="w-4 h-4 text-[#00D084]" />
-                  <h3 className="text-[15px] font-bold text-white">November 2026</h3>
+                  <h3 className="text-[15px] font-bold text-white">
+                    {calendarDate.toLocaleString('default', { month: 'long' })} {calendarDate.getFullYear()}
+                  </h3>
                 </div>
-                {selectedDay && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => {
+                      setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1));
+                      setSelectedDay(null);
+                    }}
+                    title="Previous Month"
+                    className="p-1 rounded-[6px] hover:bg-[#192C34] text-[#9BB2BC] hover:text-white transition-colors cursor-pointer"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCalendarDate(new Date());
+                      setSelectedDay(null);
+                    }}
+                    title="Current Month"
+                    className="px-2 py-0.5 text-[11px] font-semibold text-[#00D084] hover:bg-[#192C34] rounded-[6px] transition-colors cursor-pointer"
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1));
+                      setSelectedDay(null);
+                    }}
+                    title="Next Month"
+                    className="p-1 rounded-[6px] hover:bg-[#192C34] text-[#9BB2BC] hover:text-white transition-colors cursor-pointer"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {selectedDay && (
+                <div className="mb-2 flex items-center justify-between text-[11.5px] px-1">
+                  <span className="text-[#9BB2BC]">
+                    Filtered to Day {selectedDay}
+                  </span>
                   <button
                     onClick={() => setSelectedDay(null)}
-                    className="text-[11.5px] text-[#00D084] hover:underline font-semibold cursor-pointer"
+                    className="text-[#00D084] hover:underline font-semibold cursor-pointer"
                   >
                     Clear Filter
                   </button>
-                )}
-              </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-7 gap-1 text-center select-none text-[12px]">
                 {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
@@ -225,11 +273,23 @@ export const EventsView: React.FC = () => {
                     {d}
                   </div>
                 ))}
-                {Array.from({ length: 30 }, (_, i) => i + 1).map((day) => {
+
+                {/* Leading blanks */}
+                {Array.from({ length: new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1).getDay() }).map((_, i) => (
+                  <div key={`blank-${i}`} className="py-1.5" />
+                ))}
+
+                {/* Days in Month */}
+                {Array.from({ length: new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0).getDate() }, (_, i) => i + 1).map((day) => {
                   const isSelected = selectedDay === day;
-                  const hasEventsOnDay = upcomingEvents.some(
-                    (ev) => new Date(ev.event_date).getDate() === day
-                  );
+                  const calYear = calendarDate.getFullYear();
+                  const calMonth = calendarDate.getMonth();
+                  const hasEventsOnDay = upcomingEvents.some((ev) => {
+                    const d = new Date(ev.event_date);
+                    return d.getFullYear() === calYear && d.getMonth() === calMonth && d.getDate() === day;
+                  });
+                  const today = new Date();
+                  const isTodayDate = today.getFullYear() === calYear && today.getMonth() === calMonth && today.getDate() === day;
 
                   return (
                     <button
@@ -238,6 +298,8 @@ export const EventsView: React.FC = () => {
                       className={`relative py-1.5 rounded-[9px] font-medium transition-all cursor-pointer flex flex-col items-center justify-center ${
                         isSelected
                           ? 'bg-[#00D084] text-[#0B1316] font-bold shadow-[0_2px_8px_rgba(0,0,0,0.25)]'
+                          : isTodayDate
+                          ? 'border border-[#00D084]/60 text-white hover:bg-[#192C34]'
                           : 'text-[#D2DFE5] hover:bg-[#192C34]'
                       }`}
                     >

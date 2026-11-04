@@ -15,3 +15,4 @@ CREATE INDEX IF NOT EXISTS idx_semester_courses_batch ON semester_courses (batch
 
 -- 4. Fast cohort queries and directory search
 CREATE INDEX IF NOT EXISTS idx_users_batch_dept ON users (batch, department);
+

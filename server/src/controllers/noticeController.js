@@ -69,7 +69,7 @@ export const createNotice = async (req, res) => {
     const noticeId = result.insertId;
 
     // Cross-Module Notification: notify students about new announcement
-    broadcastNotification({
+    await broadcastNotification({
       batch: cleanAudience === "all" ? null : cleanAudience,
       excludeUserId: userId,
       type: "announcement",

@@ -16,9 +16,13 @@ import searchRoutes from "./routes/searchRoutes.js";
 dotenv.config();
 
 // Critical Environment Validation
-const REQUIRED_ENV_VARS = ["JWT_SECRET", "DB_NAME"];
-const missingVars = REQUIRED_ENV_VARS.filter((v) => !process.env[v] || process.env[v].trim() === "");
+const isProduction = process.env.NODE_ENV === "production";
+const REQUIRED_ENV_VARS = ["JWT_SECRET", "DB_NAME", "DB_USER"];
+if (isProduction) {
+  REQUIRED_ENV_VARS.push("DB_PASSWORD");
+}
 
+const missingVars = REQUIRED_ENV_VARS.filter((v) => !process.env[v] || process.env[v].trim() === "");
 if (missingVars.length > 0) {
   console.error(`FATAL CONFIGURATION ERROR: Missing required environment variable(s): ${missingVars.join(", ")}`);
   console.error("Please configure them in server/.env before starting the server.");
@@ -27,28 +31,39 @@ if (missingVars.length > 0) {
 
 // Insecure Secret Check (Prevent default or trivial secrets)
 const jwtSecret = process.env.JWT_SECRET.trim();
+const minLength = isProduction ? 32 : 16;
 if (
-  jwtSecret.length < 16 ||
+  jwtSecret.length < minLength ||
   jwtSecret === "secret_key" ||
   jwtSecret === "your_jwt_secret" ||
   jwtSecret === "replace_with_a_long_random_secret_at_least_32_chars"
 ) {
-  console.error("FATAL SECURITY ERROR: JWT_SECRET is missing, default, or under 16 characters. Startup aborted.");
+  console.error(`FATAL SECURITY ERROR: JWT_SECRET is missing, default, or under ${minLength} characters in ${isProduction ? 'production' : 'development'}. Startup aborted.`);
   process.exit(1);
 }
 
 const app = express();
 
-// Security: Restrict CORS origins (allow localhost clients, disable wildcards in sensitive contexts)
+// Security: Configurable CORS Origins (allow explicit production origins, fallback to localhost in dev)
+const customOrigins = process.env.CORS_ALLOWED_ORIGINS 
+  ? process.env.CORS_ALLOWED_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
+  : [];
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, postman) or localhost origins
-      if (!origin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("CORS policy violation"));
+      // Allow requests with no origin (like mobile apps, curl, postman)
+      if (!origin) return callback(null, true);
+
+      // Check configured allowlist
+      if (customOrigins.includes(origin)) return callback(null, true);
+
+      // Always allow local development and preview instances
+      if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        return callback(null, true);
       }
+
+      callback(new Error("CORS policy violation"));
     },
     credentials: true,
   })

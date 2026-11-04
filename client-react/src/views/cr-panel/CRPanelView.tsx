@@ -69,10 +69,11 @@ export const CRPanelView: React.FC = () => {
 
   // Confirmation Modals State
   const [rejectItem, setRejectItem] = useState<{ type: 'resource' | 'event' | 'task'; id: number; title: string } | null>(null);
+  const [rejectionReason, setRejectionReason] = useState<string>('');
 
   // Forms State
   const [routineForm, setRoutineForm] = useState({
-    batch: user?.batch || '2024',
+    batch: user?.batch || '',
     day_of_week: 'Sunday',
     time_slot: '',
     room_number: '',
@@ -82,8 +83,8 @@ export const CRPanelView: React.FC = () => {
   const [courseForm, setCourseForm] = useState({
     course_code: '',
     course_title: '',
-    department: user?.department || 'CSE',
-    batch: user?.batch || '2024',
+    department: user?.department || '',
+    batch: user?.batch || '',
   });
 
   // Queries
@@ -156,8 +157,9 @@ export const CRPanelView: React.FC = () => {
     if (!rejectItem) return;
     try {
       if (rejectItem.type === 'resource') {
-        await apiClient.delete(`/resources/${rejectItem.id}/reject`);
+        await apiClient.put(`/resources/${rejectItem.id}/reject`, { reason: rejectionReason });
         queryClient.invalidateQueries({ queryKey: ['cr-resources'] });
+        queryClient.invalidateQueries({ queryKey: ['resources-list'] });
       } else if (rejectItem.type === 'event') {
         await apiClient.delete(`/events/${rejectItem.id}/reject`);
         queryClient.invalidateQueries({ queryKey: ['cr-events'] });
@@ -167,6 +169,7 @@ export const CRPanelView: React.FC = () => {
       }
       info(`${rejectItem.type.toUpperCase()} rejected.`);
       setRejectItem(null);
+      setRejectionReason('');
     } catch (err: unknown) {
       const e = err as Error;
       error(e.message || 'Failed to reject item');
@@ -180,7 +183,7 @@ export const CRPanelView: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['cr-academic'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-academic'] });
       setRoutineForm({
-        batch: user?.batch || '2024',
+        batch: user?.batch || '',
         day_of_week: 'Sunday',
         time_slot: '',
         room_number: '',
@@ -199,8 +202,8 @@ export const CRPanelView: React.FC = () => {
       setCourseForm({
         course_code: '',
         course_title: '',
-        department: user?.department || 'CSE',
-        batch: user?.batch || '2024',
+        department: user?.department || '',
+        batch: user?.batch || '',
       });
       success('Semester course enrolled in catalog!');
     },

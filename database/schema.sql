@@ -215,3 +215,13 @@ CREATE INDEX IF NOT EXISTS idx_routines_batch ON routines (batch);
 CREATE INDEX IF NOT EXISTS idx_semester_courses_batch ON semester_courses (batch);
 CREATE INDEX IF NOT EXISTS idx_users_batch_dept ON users (batch, department);
 
+-- Resource Moderation History & Unique Constraints (Migration 04)
+ALTER TABLE materials MODIFY COLUMN status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending';
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS reviewed_by INT NULL;
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS reviewed_at DATETIME NULL;
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS rejection_reason TEXT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_routines_slot ON routines (batch, day_of_week, time_slot, room_no);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_course_batch_dept ON semester_courses (course_code, batch, department);
+
+

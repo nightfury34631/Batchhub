@@ -219,7 +219,7 @@ export const joinProject = async (req, res) => {
     const [requester] = await db.execute("SELECT name FROM users WHERE id = ?", [userId]);
     const requesterName = requester[0]?.name || "A student";
 
-    createNotification({
+    await createNotification({
       userId: project.created_by,
       type: "project",
       title: "🚀 Team Join Request",
@@ -301,7 +301,7 @@ export const inviteStudent = async (req, res) => {
     const [inviter] = await db.execute("SELECT name FROM users WHERE id = ?", [currentUserId]);
     const inviterName = inviter[0]?.name || "Project Owner";
 
-    createNotification({
+    await createNotification({
       userId: Number(studentId),
       type: "project",
       title: "🤝 Project Team Invitation",
@@ -388,7 +388,7 @@ export const approveJoinRequest = async (req, res) => {
     await conn.commit();
 
     // 7. Cross-Module Notification: notify requester that they were approved!
-    createNotification({
+    await createNotification({
       userId: request.user_id,
       type: "project",
       title: "🎉 Join Request Approved!",
@@ -455,7 +455,7 @@ export const rejectJoinRequest = async (req, res) => {
     await db.execute('UPDATE project_requests SET status = "rejected" WHERE id = ?', [requestId]);
 
     // 5. Cross-Module Notification: notify requester
-    createNotification({
+    await createNotification({
       userId: request.user_id,
       type: "project",
       title: "Project Join Update",
@@ -567,7 +567,7 @@ export const acceptInvitation = async (req, res) => {
 
     await conn.commit();
 
-    createNotification({
+    await createNotification({
       userId: invitation.project_owner_id,
       type: "project",
       title: "🎉 Invitation Accepted!",
@@ -617,7 +617,7 @@ export const rejectInvitation = async (req, res) => {
 
     await db.execute('UPDATE project_requests SET status = "rejected" WHERE id = ?', [requestId]);
 
-    createNotification({
+    await createNotification({
       userId: invitation.project_owner_id,
       type: "project",
       title: "Project Invitation Declined",
@@ -668,6 +668,17 @@ export const removeProjectMember = async (req, res) => {
     );
     const updatedTeamString = members.map((m) => m.name).join(", ");
     await db.execute("UPDATE projects SET team_members = ? WHERE id = ?", [updatedTeamString, projectId]);
+
+    if (!isSelf) {
+      await createNotification({
+        userId: Number(memberUserId),
+        type: "project",
+        title: "Project Roster Update",
+        message: `You were removed from the team for "${project.title}".`,
+        relatedEntityType: "project",
+        relatedEntityId: Number(projectId),
+      });
+    }
 
     res.status(200).json({
       success: true,

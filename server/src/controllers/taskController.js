@@ -107,7 +107,7 @@ export const createTask = async (req, res) => {
     const taskId = result.insertId;
 
     if (status === "approved") {
-      broadcastNotification({
+      await broadcastNotification({
         excludeUserId: userId,
         type: "task",
         title: `📋 New Deadline: ${cleanTitle}`,
@@ -171,7 +171,7 @@ export const approveTask = async (req, res) => {
 
     // Cross-Module Notification: notify task creator
     if (task.created_by) {
-      createNotification({
+      await createNotification({
         userId: task.created_by,
         type: "task",
         title: "📋 Task Approved",
@@ -182,7 +182,7 @@ export const approveTask = async (req, res) => {
     }
 
     // Broadcast to students
-    broadcastNotification({
+    await broadcastNotification({
       excludeUserId: task.created_by,
       type: "task",
       title: `📋 New Deadline: ${task.title}`,
@@ -221,7 +221,7 @@ export const rejectTask = async (req, res) => {
 
     // Cross-Module Notification: notify task creator
     if (task.created_by) {
-      createNotification({
+      await createNotification({
         userId: task.created_by,
         type: "task",
         title: "Task Submission Update",

@@ -78,7 +78,7 @@ export const createEvent = async (req, res) => {
 
     if (status === "approved") {
       // Notify students of approved campus event
-      broadcastNotification({
+      await broadcastNotification({
         excludeUserId: userId,
         type: "event",
         title: `🗓️ Campus Event: ${cleanTitle}`,
@@ -124,7 +124,7 @@ export const approveEvent = async (req, res) => {
 
     // Cross-Module Notification: notify event organizer
     if (event.created_by) {
-      createNotification({
+      await createNotification({
         userId: event.created_by,
         type: "event",
         title: "🎉 Event Approved!",
@@ -135,7 +135,7 @@ export const approveEvent = async (req, res) => {
     }
 
     // Broadcast to campus
-    broadcastNotification({
+    await broadcastNotification({
       excludeUserId: event.created_by,
       type: "event",
       title: `🗓️ New Event: ${event.title}`,
@@ -177,7 +177,7 @@ export const rejectEvent = async (req, res) => {
 
     // Cross-Module Notification: notify event organizer
     if (event.created_by) {
-      createNotification({
+      await createNotification({
         userId: event.created_by,
         type: "event",
         title: "Event Proposal Update",

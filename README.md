@@ -46,7 +46,7 @@ npm run dev
 ### Production & Verification
 * `npm run build` — Compiles TypeScript and creates optimized production bundles in `client-react/dist`.
 * `npm run preview` — Serves the production build on `http://localhost:3000` with API proxying and SPA fallback.
-* `npm test` — Executes the complete automated test suite (114 integration, auth, role-guard, database integrity, and production-readiness tests across 6 suites).
+* `npm test` — Executes the complete automated test suite (136 integration, auth, role-guard, privacy, database integrity, and production-readiness tests across 7 suites).
 
 ---
 

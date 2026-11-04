@@ -1,10 +1,11 @@
 import db from "../config/db.js";
 import { createNotification } from "./notificationController.js";
 
-// Get all approved materials + pending materials for CR panel
+// Get all approved materials + pending materials for CR panel + student's own submissions
 export const getResources = async (req, res) => {
   try {
     const role = req.user.role;
+    const userId = req.user.id;
 
     // Fetch all approved materials
     const [materials] = await db.execute(
@@ -30,7 +31,18 @@ export const getResources = async (req, res) => {
       pendingMaterials = pMaterials;
     }
 
-    res.status(200).json({ success: true, materials, pendingMaterials });
+    // Uploader submission status history (pending, approved, rejected)
+    const [mySubmissions] = await db.execute(
+      `SELECT m.*, u.name as reviewer_name, sc.course_title
+       FROM materials m
+       LEFT JOIN users u ON m.reviewed_by = u.id
+       LEFT JOIN semester_courses sc ON m.course_code = sc.course_code
+       WHERE m.uploaded_by = ?
+       ORDER BY m.created_at DESC`,
+      [userId]
+    );
+
+    res.status(200).json({ success: true, materials, pendingMaterials, mySubmissions });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -84,16 +96,21 @@ export const approveResource = async (req, res) => {
     }
 
     const { materialId } = req.params;
+    const reviewerId = req.user.id;
+
     const [materials] = await db.execute("SELECT id, title, uploaded_by FROM materials WHERE id = ?", [materialId]);
     if (materials.length === 0) {
       return res.status(404).json({ success: false, message: "Resource not found." });
     }
 
-    await db.execute('UPDATE materials SET status = "approved" WHERE id = ?', [materialId]);
+    await db.execute(
+      'UPDATE materials SET status = "approved", reviewed_by = ?, reviewed_at = NOW() WHERE id = ?',
+      [reviewerId, materialId]
+    );
 
     // Cross-Module Notification: notify uploader
     if (materials[0].uploaded_by) {
-      createNotification({
+      await createNotification({
         userId: materials[0].uploaded_by,
         type: "resource",
         title: "📚 Study Material Approved",
@@ -109,7 +126,7 @@ export const approveResource = async (req, res) => {
   }
 };
 
-// CR / Admin: Reject Material
+// CR / Admin: Reject Material (Preserves moderation history, audit log & uploader visibility)
 export const rejectResource = async (req, res) => {
   try {
     if (req.user.role !== "cr" && req.user.role !== "admin") {
@@ -117,26 +134,36 @@ export const rejectResource = async (req, res) => {
     }
 
     const { materialId } = req.params;
+    const reviewerId = req.user.id;
+    const rejectionReason = req.body?.reason || req.body?.rejection_reason || "Declined by batch representative.";
+
     const [materials] = await db.execute("SELECT id, title, uploaded_by FROM materials WHERE id = ?", [materialId]);
     if (materials.length === 0) {
       return res.status(404).json({ success: false, message: "Resource not found." });
     }
 
-    await db.execute("DELETE FROM materials WHERE id = ?", [materialId]);
+    // Preserve the submission record with status 'rejected' and audit details
+    await db.execute(
+      'UPDATE materials SET status = "rejected", reviewed_by = ?, reviewed_at = NOW(), rejection_reason = ? WHERE id = ?',
+      [reviewerId, rejectionReason, materialId]
+    );
 
     // Cross-Module Notification: notify uploader
     if (materials[0].uploaded_by) {
-      createNotification({
+      await createNotification({
         userId: materials[0].uploaded_by,
         type: "resource",
         title: "Study Material Update",
-        message: `Your submitted resource "${materials[0].title}" was declined by the batch representative.`,
+        message: `Your submitted resource "${materials[0].title}" was declined: ${rejectionReason}`,
         relatedEntityType: "resource",
         relatedEntityId: Number(materialId),
       });
     }
 
-    res.status(200).json({ success: true, message: "Resource rejected and removed." });
+    res.status(200).json({
+      success: true,
+      message: "Resource submission declined and moderation history preserved.",
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
