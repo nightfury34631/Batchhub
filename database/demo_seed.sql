@@ -41,3 +41,4 @@ VALUES
 ('3rd Year', 'Tuesday', '09:00 AM - 10:30 AM', 'Computer Networks (CSE-3205)', 'Lab 3, CSE Building'),
 ('3rd Year', 'Wednesday', '11:00 AM - 12:30 PM', 'Computer Architecture (CSE-3209)', 'Room 405, Dept of CSE'),
 ('3rd Year', 'Thursday', '02:00 PM - 03:30 PM', 'Software Engineering Lab (CSE-3202)', 'Software Lab 1');
+

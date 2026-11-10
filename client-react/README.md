@@ -1,32 +1,63 @@
-# React + TypeScript + Vite
+# BatchHub — React Frontend Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+This directory contains the primary frontend client for **BatchHub**, built with **React 19**, **TypeScript**, **Vite**, and **Tailwind CSS v4**.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🛠️ Technology Stack
 
-## React Compiler
+- **Framework:** React 19 (`react`, `react-dom`)
+- **Language:** TypeScript 5.x
+- **Build Tool:** Vite 6.x
+- **Styling:** Tailwind CSS v4 (`@tailwindcss/vite`) with custom Midnight Campus theme tokens
+- **Routing:** React Router v7 (`react-router-dom`)
+- **Server State & Caching:** TanStack Query v5 (`@tanstack/react-query`)
+- **Client State:** Zustand v5 (`zustand`)
+- **Icons:** Lucide React (`lucide-react`)
+- **Animations:** Motion (`motion`)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the Oxlint configuration
+## 🚀 Development & Build Scripts
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+```bash
+# Run local Vite development server with HMR on port 3000
+npm run dev
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+# Compile TypeScript and generate optimized production bundle in dist/
+npm run build
+
+# Preview the production build locally
+npm run preview
+
+# Run Oxlint checks
+npm run lint
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+---
+
+## 📁 Source Code Structure
+
+```
+client-react/src/
+├── components/          # Reusable UI & Layout Components
+│   ├── layout/          # AppLayout, Topbar, Sidebar, CommandPalette, ProtectedRoute
+│   └── ui/              # Button, Card, Badge, Modal, Toast, Input, Tabs, etc.
+├── services/            # Axios API client with JWT interceptor & auth service
+├── stores/              # Zustand global client stores (useAuthStore)
+├── types/               # TypeScript interfaces & domain types
+├── views/               # Route views / pages
+│   ├── announcements/   # Cohort Bulletins with pinned notices
+│   ├── auth/            # Login and Register pages
+│   ├── cr-panel/        # Class Rep & Admin moderation suites
+│   ├── dashboard/       # Primary Academic Flight Deck
+│   ├── events/          # Campus Events & interactive calendar
+│   ├── members/         # Student directory with search & filters
+│   ├── profile/         # User profile & account preferences
+│   ├── projects/        # Project collaboration & team discovery
+│   ├── resources/       # Study materials repository
+│   └── tasks/           # Tasks, deadlines & completion tracking
+├── App.tsx              # Application route tree & providers
+├── index.css            # Midnight Campus theme tokens & Tailwind imports
+└── main.tsx             # React DOM entrypoint
+```

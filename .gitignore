@@ -1,4 +1,4 @@
-# Environment files
+# Environment files (strictly exclude secrets)
 .env
 .env.*
 server/.env
@@ -10,8 +10,27 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+
+# Production build outputs
+dist/
+client-react/dist/
+dist-ssr/
+build/
+
+# Logs
+logs/
+*.log
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
 # OS metadata
 .DS_Store
 Thumbs.db
-
