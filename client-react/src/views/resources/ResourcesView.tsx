@@ -21,6 +21,7 @@ import { Select } from "../../components/ui/Select";
 import { Badge } from "../../components/ui/Badge";
 import { Modal } from "../../components/ui/Modal";
 import { useToast } from "../../components/ui/Toast";
+import { CardGridSkeleton } from "../../components/ui/Skeleton";
 
 export interface MaterialItem {
   id: number;
@@ -133,6 +134,16 @@ export const ResourcesView: React.FC = () => {
     });
   }, [materials, selectedCategory, searchQuery]);
 
+  const categoryCounts = useMemo(() => {
+    return {
+      all: materials.length,
+      lectureNotes: materials.filter((m) => m.category === 'Lecture Notes').length,
+      assignment: materials.filter((m) => m.category === 'Assignment').length,
+      book: materials.filter((m) => m.category === 'Book').length,
+      questionBank: materials.filter((m) => m.category === 'Question Bank').length,
+    };
+  }, [materials]);
+
   const handleSubmitUpload = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title.trim()) {
@@ -204,22 +215,31 @@ export const ResourcesView: React.FC = () => {
           {/* Category Tabs */}
           <div className="flex items-center gap-1.5 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
             {[
-              { id: "all", label: "All Resources" },
-              { id: "Lecture Notes", label: "Lecture Notes" },
-              { id: "Assignment", label: "Assignments" },
-              { id: "Book", label: "Books & Text" },
-              { id: "Question Bank", label: "Question Bank" },
+              { id: "all", label: "All Resources", count: categoryCounts.all },
+              { id: "Lecture Notes", label: "Lecture Notes", count: categoryCounts.lectureNotes },
+              { id: "Assignment", label: "Assignments", count: categoryCounts.assignment },
+              { id: "Book", label: "Books & Text", count: categoryCounts.book },
+              { id: "Question Bank", label: "Question Bank", count: categoryCounts.questionBank },
             ].map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-[10px] text-[13px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-[10px] text-[13px] font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                   selectedCategory === cat.id
-                    ? "bg-[#0E171B] text-[#00D084] border border-[#00D084]/30"
-                    : "text-[#9BB2BC] hover:text-white"
+                    ? "bg-[#0E171B] text-[#00D084] border border-[#00D084]/30 shadow-sm"
+                    : "text-[#9BB2BC] hover:text-white hover:bg-[#0E171B]/50"
                 }`}
               >
-                {cat.label}
+                <span>{cat.label}</span>
+                <span
+                  className={`text-[11px] px-1.5 py-0.2 rounded-full ${
+                    selectedCategory === cat.id
+                      ? "bg-[#00D084]/20 text-[#00D084]"
+                      : "bg-[#1F353C] text-[#9BB2BC]"
+                  }`}
+                >
+                  {cat.count}
+                </span>
               </button>
             ))}
           </div>
@@ -239,9 +259,7 @@ export const ResourcesView: React.FC = () => {
 
         {/* Materials Grid */}
         {isLoading ? (
-          <div className="py-16 text-center text-[13px] text-[#9BB2BC]">
-            Loading study materials...
-          </div>
+          <CardGridSkeleton count={6} />
         ) : filteredMaterials.length === 0 ? (
           <div className="bg-[#15242A] border border-[#1F353C] rounded-[18px] p-12 text-center flex flex-col items-center justify-center">
             <BookOpen className="w-10 h-10 text-[#9BB2BC] mb-2" />

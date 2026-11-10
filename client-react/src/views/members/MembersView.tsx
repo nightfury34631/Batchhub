@@ -15,6 +15,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
+import { CardGridSkeleton } from '../../components/ui/Skeleton';
 
 export interface MemberItem {
   id: number;
@@ -199,7 +200,7 @@ export const MembersView: React.FC = () => {
 
         {/* Members Grid */}
         {isLoading ? (
-          <div className="py-16 text-center text-[13px] text-[#9BB2BC]">Loading student directory...</div>
+          <CardGridSkeleton count={6} />
         ) : filteredMembers.length === 0 ? (
           <div className="bg-[#15242A] border border-[#1F353C] rounded-[18px] p-12 text-center flex flex-col items-center justify-center">
             <Users className="w-10 h-10 text-[#9BB2BC] mb-2" />

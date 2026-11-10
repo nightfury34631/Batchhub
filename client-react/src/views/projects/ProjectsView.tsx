@@ -22,6 +22,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { useToast } from '../../components/ui/Toast';
+import { CardGridSkeleton } from '../../components/ui/Skeleton';
 
 export interface ProjectItem {
   id: number;
@@ -381,7 +382,7 @@ export const ProjectsView: React.FC = () => {
 
         {/* Project Grid */}
         {isLoading ? (
-          <div className="py-16 text-center text-[13.5px] text-[#9BB2BC]">Loading projects directory...</div>
+          <CardGridSkeleton count={6} />
         ) : filteredProjects.length === 0 ? (
           <div className="bg-[#15242A] border border-[#1F353C] rounded-[18px] p-12 text-center flex flex-col items-center justify-center">
             <FolderGit2 className="w-10 h-10 text-[#9BB2BC] mb-2" />

@@ -23,8 +23,19 @@ const ROUTE_TITLES: Record<string, string> = {
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('batchhub_sidebar_collapsed') === 'true';
+  });
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const location = useLocation();
+
+  const handleToggleCollapse = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('batchhub_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
 
   const resolvedTitle =
     (title && title !== 'Dashboard' ? title : null) ||
@@ -35,7 +46,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {
   return (
     <div className="min-h-screen bg-[#0B1316] text-[#D2DFE5] flex">
       {/* Sidebar Rail */}
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={handleToggleCollapse}
+      />
 
       {/* Main Workspace Column */}
       <div className="flex-1 flex flex-col min-w-0 min-h-screen">
@@ -55,4 +71,5 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {
     </div>
   );
 };
+
 

@@ -207,6 +207,11 @@ export const Topbar: React.FC<TopbarProps> = ({
                         key={n.id}
                         onClick={() => {
                           if (isUnread) markOneReadMutation.mutate(n.id);
+                          setIsNotifOpen(false);
+                          if (n.type === 'task' || n.related_entity_type === 'task') navigate('/tasks');
+                          else if (n.type === 'event' || n.related_entity_type === 'event') navigate('/events');
+                          else if (n.type === 'announcement' || n.related_entity_type === 'notice') navigate('/announcements');
+                          else if (n.type === 'project' || n.related_entity_type === 'project') navigate('/projects');
                         }}
                         className={`p-2.5 rounded-[10px] border flex flex-col gap-1 text-left transition-colors cursor-pointer ${
                           isUnread

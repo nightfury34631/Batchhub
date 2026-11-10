@@ -6,8 +6,6 @@ import {
   Clock,
   MapPin,
   CheckCircle2,
-  Plus,
-  BookOpen,
   ArrowRight,
   ChevronRight,
   ChevronLeft,
@@ -15,6 +13,11 @@ import {
   Pin,
   Check,
   Megaphone,
+  CheckSquare,
+  FolderGit2,
+  Activity,
+  Plus,
+  Compass,
 } from 'lucide-react';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -22,6 +25,7 @@ import { apiClient } from '../../services/apiClient';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
+import { DashboardSkeleton } from '../../components/ui/Skeleton';
 
 interface Task {
   id: number;
@@ -31,6 +35,7 @@ interface Task {
   priority: 'High' | 'Medium' | 'Low';
   is_completed?: number | boolean;
   description?: string;
+  created_at?: string;
 }
 
 interface EventItem {
@@ -40,6 +45,7 @@ interface EventItem {
   time?: string;
   location?: string;
   description?: string;
+  created_at?: string;
 }
 
 interface NoticeItem {
@@ -65,6 +71,56 @@ interface AcademicResponse {
   courses?: Array<{ id: number; course_code: string; course_title: string; department?: string; batch?: string }>;
   routine?: RoutineSlot[];
 }
+
+interface ProjectItem {
+  id: number;
+  title: string;
+  description?: string;
+  tech_stack?: string;
+  created_at?: string;
+}
+
+interface ProjectsResponse {
+  projects?: ProjectItem[];
+}
+
+interface ActivityItem {
+  id: string;
+  type: 'task' | 'event' | 'notice' | 'project';
+  title: string;
+  subtitle: string;
+  timestamp: string;
+  link: string;
+}
+
+// Relative time helper
+const formatRelativeTime = (dateStr?: string): string => {
+  if (!dateStr) return 'Recently';
+  const time = new Date(dateStr).getTime();
+  if (isNaN(time)) return 'Recently';
+  const diffSec = Math.floor((Date.now() - time) / 1000);
+  if (diffSec < 60) return 'Just now';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+  if (diffSec < 172800) return 'Yesterday';
+  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
+// Dynamic event countdown helper
+const getEventCountdown = (dateStr: string) => {
+  const target = new Date(dateStr);
+  const now = new Date();
+  // Clear times to compare dates accurately
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const targetDate = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
+  const diffDays = Math.round((targetDate - todayDate) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return { label: 'Completed', variant: 'muted' as const };
+  if (diffDays === 0) return { label: 'Today', variant: 'danger' as const };
+  if (diffDays === 1) return { label: 'Tomorrow', variant: 'warning' as const };
+  if (diffDays <= 7) return { label: `In ${diffDays}d`, variant: 'mint' as const };
+  return { label: `In ${diffDays}d`, variant: 'info' as const };
+};
 
 export const DashboardView: React.FC = () => {
   const { user } = useAuthStore();
@@ -94,13 +150,19 @@ export const DashboardView: React.FC = () => {
     queryFn: () => apiClient.get<{ notices: NoticeItem[] }>('/notices'),
   });
 
-  // 4. Fetch Academic Routine
+  // 4. Fetch Projects
+  const { data: projectsData, isLoading: projectsLoading } = useQuery({
+    queryKey: ['dashboard-projects'],
+    queryFn: () => apiClient.get<ProjectsResponse>('/projects'),
+  });
+
+  // 5. Fetch Academic Routine
   const { data: academicData } = useQuery({
     queryKey: ['dashboard-academic'],
     queryFn: () => apiClient.get<AcademicResponse>('/academic'),
   });
 
-  // Task Completion Mutation
+  // Task Completion Mutation with Optimistic Feedback
   const toggleTaskMutation = useMutation({
     mutationFn: async ({ taskId, isCurrentlyCompleted }: { taskId: number; isCurrentlyCompleted: boolean }) => {
       if (isCurrentlyCompleted) {
@@ -122,18 +184,28 @@ export const DashboardView: React.FC = () => {
   const tasks = tasksData?.tasks || [];
   const events = eventsData?.events || [];
   const notices = noticesData?.notices || [];
+  const projects = projectsData?.projects || [];
   const routinesList = academicData?.routine || [];
 
   // Metrics computation from real database records
   const now = new Date();
   const totalTasksCount = tasks.length;
   const completedTasksCount = tasks.filter((t) => Boolean(t.is_completed)).length;
+  const pendingTasksCount = Math.max(0, totalTasksCount - completedTasksCount);
   const overdueTasksCount = tasks.filter(
     (t) => !t.is_completed && new Date(t.due_date).getTime() < now.getTime()
   ).length;
+
+  const completionRate = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 100;
+
   const activeTasks = tasks.slice(0, 5);
   const activeEvents = events.slice(0, 4);
   const pinnedNotices = notices.filter((n) => Boolean(n.is_pinned)).slice(0, 2);
+
+  // Dynamic Time-of-Day Greeting
+  const currentHour = now.getHours();
+  const greeting =
+    currentHour < 12 ? 'Good morning' : currentHour < 17 ? 'Good afternoon' : 'Good evening';
 
   // Dynamic next upcoming class computed from actual time and weekly routine records
   const nextClass = useMemo(() => {
@@ -187,6 +259,64 @@ export const DashboardView: React.FC = () => {
     return { ...routinesList[0], dayLabel: routinesList[0].day_of_week || 'Routine' };
   }, [routinesList, now]);
 
+  // Aggregate Real Live Activity Feed (100% genuine backend data)
+  const recentActivities = useMemo<ActivityItem[]>(() => {
+    const list: ActivityItem[] = [];
+
+    // Announcements
+    notices.forEach((n) => {
+      list.push({
+        id: `notice-${n.id}`,
+        type: 'notice',
+        title: n.title,
+        subtitle: `Announcement (${n.category})`,
+        timestamp: n.created_at,
+        link: '/announcements',
+      });
+    });
+
+    // Events
+    events.forEach((e) => {
+      list.push({
+        id: `event-${e.id}`,
+        type: 'event',
+        title: e.title,
+        subtitle: `Event on ${new Date(e.event_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
+        timestamp: e.created_at || e.event_date,
+        link: '/events',
+      });
+    });
+
+    // Tasks
+    tasks.forEach((t) => {
+      list.push({
+        id: `task-${t.id}`,
+        type: 'task',
+        title: t.title,
+        subtitle: `Coursework deadline ${t.course_code ? `[${t.course_code}]` : ''}`,
+        timestamp: t.created_at || t.due_date,
+        link: '/tasks',
+      });
+    });
+
+    // Projects
+    projects.forEach((p) => {
+      list.push({
+        id: `project-${p.id}`,
+        type: 'project',
+        title: p.title,
+        subtitle: `Project collaboration ${p.tech_stack ? `(${p.tech_stack})` : ''}`,
+        timestamp: p.created_at || new Date().toISOString(),
+        link: '/projects',
+      });
+    });
+
+    // Sort descending by timestamp
+    return list
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 5);
+  }, [notices, events, tasks, projects]);
+
   // Dynamic Calendar Calculation
   const calYear = calendarDate.getFullYear();
   const calMonth = calendarDate.getMonth();
@@ -222,455 +352,598 @@ export const DashboardView: React.FC = () => {
     return today.getFullYear() === calYear && today.getMonth() === calMonth && today.getDate() === day;
   };
 
+  const isInitialLoading = tasksLoading && eventsLoading && noticesLoading && projectsLoading;
+
   return (
     <AppLayout title="Academic Flight Deck">
-      <div className="space-y-4 sm:space-y-5">
-        {/* 1. Unified Hero Banner with Metrics */}
-        <section className="bg-[#15242A] border border-[#1F353C] rounded-[18px] p-5 sm:p-6 shadow-[0_8px_24px_rgba(0,0,0,0.2)] flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div className="flex items-start gap-3.5">
-            <div className="w-12 h-12 rounded-[12px] bg-[#0E171B] border border-[#00D084]/30 flex items-center justify-center text-[#00D084] shrink-0">
-              <Sparkles className="w-6 h-6" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] uppercase font-bold tracking-wider text-[#00D084]">
-                  {user?.batch ? `Batch ${user.batch}` : `Academic Year ${now.getFullYear()}`}
-                </span>
-                <span className="text-[#1F353C]">•</span>
-                <span className="text-[12px] text-[#9BB2BC]">
-                  {user?.department || 'Computer Science & Engineering'}
-                </span>
+      {isInitialLoading ? (
+        <DashboardSkeleton />
+      ) : (
+        <div className="space-y-5">
+          {/* 1. SaaS Hero Greeting Banner */}
+          <section className="bg-gradient-to-r from-[#15242A] via-[#15242A] to-[#122026] border border-[#1F353C] rounded-[18px] p-5 sm:p-6 shadow-[0_8px_24px_rgba(0,0,0,0.25)] flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-[14px] bg-[#0E171B] border border-[#00D084]/30 flex items-center justify-center text-[#00D084] shrink-0 shadow-inner">
+                <Sparkles className="w-6 h-6" />
               </div>
-              <h2 className="text-[20px] sm:text-[24px] font-bold text-white tracking-tight mt-0.5">
-                Welcome back, {user?.name ? user.name.split(' ')[0] : 'Scholar'}!
-              </h2>
-              <p className="text-[13px] text-[#9BB2BC]">
-                You have{' '}
-                <strong className="text-white font-semibold">
-                  {Math.max(0, totalTasksCount - completedTasksCount)} active coursework deadlines
-                </strong>{' '}
-                and {events.length} upcoming events scheduled.
-              </p>
-            </div>
-          </div>
-
-          {/* Metric Badges Strip */}
-          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-            <button
-              onClick={() => navigate('/tasks')}
-              className="px-3.5 py-2.5 rounded-[12px] bg-[#0E171B] border border-[#1F353C] hover:border-[#F87171]/40 flex flex-col min-w-[100px] text-left transition-colors cursor-pointer"
-            >
-              <span className="text-[10.5px] uppercase font-bold tracking-wider text-[#9BB2BC]">
-                Overdue
-              </span>
-              <span className={`text-[20px] font-bold ${overdueTasksCount > 0 ? 'text-[#F87171]' : 'text-white'}`}>
-                {overdueTasksCount}
-              </span>
-            </button>
-
-            <button
-              onClick={() => navigate('/tasks')}
-              className="px-3.5 py-2.5 rounded-[12px] bg-[#0E171B] border border-[#1F353C] hover:border-[#00D084]/40 flex flex-col min-w-[100px] text-left transition-colors cursor-pointer"
-            >
-              <span className="text-[10.5px] uppercase font-bold tracking-wider text-[#9BB2BC]">
-                Completed
-              </span>
-              <span className="text-[20px] font-bold text-[#00D084]">{completedTasksCount}</span>
-            </button>
-
-            <button
-              onClick={() => navigate('/tasks')}
-              className="px-3.5 py-2.5 rounded-[12px] bg-[#0E171B] border border-[#1F353C] hover:border-[#38BDF8]/40 flex flex-col min-w-[100px] text-left transition-colors cursor-pointer"
-            >
-              <span className="text-[10.5px] uppercase font-bold tracking-wider text-[#9BB2BC]">
-                Total Tasks
-              </span>
-              <span className="text-[20px] font-bold text-white">{totalTasksCount}</span>
-            </button>
-          </div>
-        </section>
-
-        {/* 2. Primary 2-Column Asymmetric Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
-          {/* Left Column (5 cols): Academic Next Up, Dynamic Mini Calendar & Events */}
-          <div className="lg:col-span-5 flex flex-col gap-4 sm:gap-5">
-            {/* Academic Next Up Session Flight Deck */}
-            <div className="bg-[#15242A] border border-[#1F353C] rounded-[16px] p-4 sm:p-5 shadow-[0_4px_16px_rgba(0,0,0,0.18)]">
-              <div className="flex items-center justify-between pb-2.5 border-b border-[#1F353C]/60">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#00D084] animate-pulse" />
-                  <span className="text-[11px] uppercase font-bold tracking-wider text-[#00D084]">
-                    Next Up on Routine
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[11px] uppercase font-bold tracking-wider text-[#00D084] bg-[#00D084]/10 px-2 py-0.5 rounded-full border border-[#00D084]/20">
+                    {user?.batch ? `Batch ${user.batch}` : `Academic Session ${now.getFullYear()}`}
+                  </span>
+                  <span className="text-[#1F353C]">•</span>
+                  <span className="text-[12px] text-[#9BB2BC] font-medium">
+                    {user?.department || 'Computer Science & Engineering'}
                   </span>
                 </div>
-                {nextClass ? (
-                  <Badge variant="mint" size="xs">
-                    {nextClass.dayLabel}
-                  </Badge>
-                ) : (
-                  <Badge variant="muted" size="xs">
-                    No Schedule
-                  </Badge>
-                )}
+                <h2 className="text-[20px] sm:text-[24px] font-bold text-white tracking-tight mt-1">
+                  {greeting}, {user?.name ? user.name.split(' ')[0] : 'Scholar'}!
+                </h2>
+                <p className="text-[13px] text-[#9BB2BC] mt-0.5 max-w-xl">
+                  Cohort flight deck is synchronized. You have{' '}
+                  <strong className="text-white font-semibold">
+                    {pendingTasksCount} pending {pendingTasksCount === 1 ? 'task' : 'tasks'}
+                  </strong>{' '}
+                  and {events.length} campus {events.length === 1 ? 'event' : 'events'} on your radar.
+                </p>
               </div>
+            </div>
 
-              {nextClass ? (
-                <div className="mt-3">
-                  <h3 className="text-[15px] font-bold text-white tracking-tight">
-                    {nextClass.course_name}
-                  </h3>
-                  <div className="flex items-center gap-2 text-[12px] text-[#9BB2BC] mt-1.5">
-                    <Clock className="w-3.5 h-3.5 text-[#38BDF8]" />
-                    <span>{nextClass.time_slot || 'Time not specified'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[12px] text-[#9BB2BC] mt-1">
-                    <MapPin className="w-3.5 h-3.5 text-[#38BDF8]" />
-                    <span>Room: {nextClass.room_no || nextClass.room_number || 'TBA'}</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="py-5 text-center flex flex-col items-center justify-center gap-1">
-                  <p className="text-[13px] text-[#9BB2BC]">No routine slots scheduled for your cohort.</p>
-                  <p className="text-[11.5px] text-[#9BB2BC]/70">Class Representatives can register periods in the CR Panel.</p>
-                </div>
-              )}
+            {/* Quick Action Trigger */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={<Compass className="w-3.5 h-3.5" />}
+                onClick={() => navigate('/resources')}
+              >
+                Knowledge Hub
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<Plus className="w-3.5 h-3.5" />}
+                onClick={() => navigate('/tasks')}
+              >
+                New Task
+              </Button>
+            </div>
+          </section>
 
-              <div className="pt-3 mt-3 border-t border-[#1F353C]/60 flex items-center justify-between text-[11.5px]">
-                <span className="text-[#9BB2BC]">
-                  {user?.department ? `${user.department} Department` : 'Academic Schedule'}
+          {/* 2. Real Data-Driven 4 KPI Metric Cards */}
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+            {/* Card 1: Upcoming Events */}
+            <div
+              onClick={() => navigate('/events')}
+              className="group bg-[#15242A] hover:bg-[#182B33] border border-[#1F353C] hover:border-[#00D084]/40 rounded-[16px] p-4 sm:p-5 transition-all duration-150 cursor-pointer shadow-sm hover:shadow-[0_8px_20px_rgba(0,0,0,0.3)] flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-semibold text-[#9BB2BC] uppercase tracking-wider">
+                  Events
                 </span>
-                <Link
-                  to="/cr-panel"
-                  className="text-[#00D084] hover:underline font-medium inline-flex items-center gap-1"
-                >
-                  View full routine <ArrowRight className="w-3 h-3" />
-                </Link>
+                <div className="w-8 h-8 rounded-lg bg-[#0E171B] border border-[#1F353C] group-hover:border-[#00D084]/40 flex items-center justify-center text-[#00D084] transition-colors">
+                  <CalendarIcon className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="text-[26px] font-extrabold text-white tracking-tight leading-none">
+                  {events.length}
+                </div>
+                <div className="flex items-center justify-between text-[11.5px] text-[#9BB2BC] mt-1.5">
+                  <span>Scheduled campus activities</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-[#00D084] opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
               </div>
             </div>
 
-            {/* Interactive Dynamic Mini Calendar */}
-            <div className="bg-[#15242A] border border-[#1F353C] rounded-[16px] p-4 sm:p-5 shadow-[0_4px_16px_rgba(0,0,0,0.18)]">
-              <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[#1F353C]/60">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="w-4 h-4 text-[#00D084]" />
-                  <h3 className="text-[14.5px] font-bold text-white">
-                    {calMonthName} {calYear}
-                  </h3>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={handlePrevMonth}
-                    title="Previous Month"
-                    className="p-1 rounded-[6px] hover:bg-[#192C34] text-[#9BB2BC] hover:text-white transition-colors cursor-pointer"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setCalendarDate(new Date());
-                      setSelectedDay(null);
-                    }}
-                    title="Today"
-                    className="px-2 py-0.5 text-[11px] font-semibold text-[#00D084] hover:bg-[#192C34] rounded-[6px] transition-colors cursor-pointer"
-                  >
-                    Today
-                  </button>
-                  <button
-                    onClick={handleNextMonth}
-                    title="Next Month"
-                    className="p-1 rounded-[6px] hover:bg-[#192C34] text-[#9BB2BC] hover:text-white transition-colors cursor-pointer"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+            {/* Card 2: Active Deadlines */}
+            <div
+              onClick={() => navigate('/tasks')}
+              className="group bg-[#15242A] hover:bg-[#182B33] border border-[#1F353C] hover:border-[#00D084]/40 rounded-[16px] p-4 sm:p-5 transition-all duration-150 cursor-pointer shadow-sm hover:shadow-[0_8px_20px_rgba(0,0,0,0.3)] flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-semibold text-[#9BB2BC] uppercase tracking-wider">
+                  Course Tasks
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-[#0E171B] border border-[#1F353C] group-hover:border-[#00D084]/40 flex items-center justify-center text-[#00D084] transition-colors">
+                  <CheckSquare className="w-4 h-4" />
                 </div>
               </div>
+              <div className="mt-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[26px] font-extrabold text-white tracking-tight leading-none">
+                    {pendingTasksCount}
+                  </span>
+                  <span className="text-[12px] text-[#9BB2BC]">/ {totalTasksCount} total</span>
+                </div>
+                <div className="flex items-center justify-between text-[11.5px] text-[#9BB2BC] mt-1.5">
+                  <span className={overdueTasksCount > 0 ? 'text-[#F87171] font-medium' : 'text-[#00D084]'}>
+                    {overdueTasksCount > 0 ? `${overdueTasksCount} overdue` : `${completionRate}% done`}
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-[#00D084] opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </div>
+            </div>
 
-              <div className="grid grid-cols-7 gap-1 text-center select-none text-[11.5px]">
-                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
-                  <div key={d} className="text-[#9BB2BC] font-semibold py-1">
-                    {d}
+            {/* Card 3: Batch Bulletins */}
+            <div
+              onClick={() => navigate('/announcements')}
+              className="group bg-[#15242A] hover:bg-[#182B33] border border-[#1F353C] hover:border-[#38BDF8]/40 rounded-[16px] p-4 sm:p-5 transition-all duration-150 cursor-pointer shadow-sm hover:shadow-[0_8px_20px_rgba(0,0,0,0.3)] flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-semibold text-[#9BB2BC] uppercase tracking-wider">
+                  Bulletins
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-[#0E171B] border border-[#1F353C] group-hover:border-[#38BDF8]/40 flex items-center justify-center text-[#38BDF8] transition-colors">
+                  <Megaphone className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="text-[26px] font-extrabold text-white tracking-tight leading-none">
+                  {notices.length}
+                </div>
+                <div className="flex items-center justify-between text-[11.5px] text-[#9BB2BC] mt-1.5">
+                  <span>{pinnedNotices.length} pinned notices</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-[#38BDF8] opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: Project Workspaces */}
+            <div
+              onClick={() => navigate('/projects')}
+              className="group bg-[#15242A] hover:bg-[#182B33] border border-[#1F353C] hover:border-[#A855F7]/40 rounded-[16px] p-4 sm:p-5 transition-all duration-150 cursor-pointer shadow-sm hover:shadow-[0_8px_20px_rgba(0,0,0,0.3)] flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-semibold text-[#9BB2BC] uppercase tracking-wider">
+                  Projects
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-[#0E171B] border border-[#1F353C] group-hover:border-[#A855F7]/40 flex items-center justify-center text-[#A855F7] transition-colors">
+                  <FolderGit2 className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="text-[26px] font-extrabold text-white tracking-tight leading-none">
+                  {projects.length}
+                </div>
+                <div className="flex items-center justify-between text-[11.5px] text-[#9BB2BC] mt-1.5">
+                  <span>Active team repositories</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-[#A855F7] opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 3. Primary Workspace Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
+            {/* Left Column (5 cols): Routine Session, Calendar & Events */}
+            <div className="lg:col-span-5 flex flex-col gap-4 sm:gap-5">
+              {/* Routine Session Flight Deck */}
+              <div className="bg-[#15242A] border border-[#1F353C] rounded-[16px] p-4 sm:p-5 shadow-[0_4px_16px_rgba(0,0,0,0.18)]">
+                <div className="flex items-center justify-between pb-2.5 border-b border-[#1F353C]/60">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#00D084] animate-pulse" />
+                    <span className="text-[11px] uppercase font-bold tracking-wider text-[#00D084]">
+                      Next Routine Class
+                    </span>
                   </div>
-                ))}
-
-                {/* Leading Blank Cells */}
-                {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                  <div key={`blank-${i}`} className="py-1.5" />
-                ))}
-
-                {/* Actual Days of the Month */}
-                {Array.from({ length: daysInCalMonth }, (_, i) => i + 1).map((day) => {
-                  const isSelected = selectedDay === day;
-                  const hasIndicator = dayHasIndicator(day);
-                  const isTodayDate = isCurrentToday(day);
-
-                  return (
-                    <button
-                      key={day}
-                      onClick={() => setSelectedDay(isSelected ? null : day)}
-                      className={`relative py-1.5 rounded-[8px] font-medium transition-all cursor-pointer flex flex-col items-center justify-center ${
-                        isSelected
-                          ? 'bg-[#00D084] text-[#0B1316] font-bold shadow-[0_0_12px_rgba(0,208,132,0.4)] ring-2 ring-[#00D084]/40'
-                          : isTodayDate
-                          ? 'border border-[#00D084]/60 text-white hover:bg-[#192C34]'
-                          : 'text-[#D2DFE5] hover:bg-[#192C34]'
-                      }`}
-                    >
-                      <span>{day}</span>
-                      {hasIndicator && !isSelected && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#00D084] mt-0.5" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Upcoming Events List */}
-            <div className="bg-[#15242A] border border-[#1F353C] rounded-[16px] p-4 sm:p-5 shadow-[0_4px_16px_rgba(0,0,0,0.18)] flex flex-col gap-2.5">
-              <div className="flex items-center justify-between pb-2.5 border-b border-[#1F353C]/60">
-                <h3 className="text-[14.5px] font-bold text-white">Upcoming Events</h3>
-                <Link
-                  to="/events"
-                  className="text-[11.5px] text-[#00D084] hover:underline flex items-center gap-1 font-semibold"
-                >
-                  <span>View All</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-
-              {eventsLoading ? (
-                <div className="py-6 text-center text-[12.5px] text-[#9BB2BC]">Loading events...</div>
-              ) : activeEvents.length === 0 ? (
-                <div className="py-6 text-center text-[12.5px] text-[#9BB2BC]">No upcoming events scheduled.</div>
-              ) : (
-                <div className="flex flex-col divide-y divide-[#1F353C]/60">
-                  {activeEvents.map((ev) => (
-                    <Link
-                      key={ev.id}
-                      to="/events"
-                      className="py-2.5 flex items-center justify-between group cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-[9px] bg-[#0E171B] border border-[#1F353C] flex flex-col items-center justify-center text-center shrink-0">
-                          <span className="text-[10px] uppercase font-bold text-[#9BB2BC]">
-                            {new Date(ev.event_date).toLocaleString('default', { month: 'short' })}
-                          </span>
-                          <span className="text-[14px] font-bold text-[#00D084]">
-                            {new Date(ev.event_date).getDate()}
-                          </span>
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-[13px] font-semibold text-white group-hover:text-[#00D084] transition-colors truncate">
-                            {ev.title}
-                          </span>
-                          <div className="flex items-center gap-3 text-[11.5px] text-[#9BB2BC] mt-0.5 truncate">
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3 text-[#38BDF8]" /> {ev.time || 'TBA'}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-[#38BDF8]" /> {ev.location || 'Campus'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-[#9BB2BC] group-hover:text-white transition-colors shrink-0" />
-                    </Link>
-                  ))}
+                  {nextClass ? (
+                    <Badge variant="mint" size="xs">
+                      {nextClass.dayLabel}
+                    </Badge>
+                  ) : (
+                    <Badge variant="muted" size="xs">
+                      No Class
+                    </Badge>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
 
-          {/* Right Column (7 cols): Course Deadlines & Pinned Notices */}
-          <div className="lg:col-span-7 flex flex-col gap-4 sm:gap-5">
-            {/* Active Deadlines with Live Checkbox Mutation */}
-            <div className="bg-[#15242A] border border-[#1F353C] rounded-[16px] p-4 sm:p-5 shadow-[0_4px_16px_rgba(0,0,0,0.18)] flex flex-col gap-2.5">
-              <div className="flex items-center justify-between pb-2.5 border-b border-[#1F353C]/60">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#00D084]" />
-                  <h3 className="text-[14.5px] font-bold text-white">Active Course Deadlines</h3>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Badge variant="mint" size="xs">
-                    {completedTasksCount} of {totalTasksCount} Done
-                  </Badge>
+                {nextClass ? (
+                  <div className="mt-3">
+                    <h3 className="text-[15px] font-bold text-white tracking-tight">
+                      {nextClass.course_name}
+                    </h3>
+                    <div className="flex items-center gap-2 text-[12px] text-[#9BB2BC] mt-1.5">
+                      <Clock className="w-3.5 h-3.5 text-[#38BDF8]" />
+                      <span>{nextClass.time_slot || 'Time not specified'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[12px] text-[#9BB2BC] mt-1">
+                      <MapPin className="w-3.5 h-3.5 text-[#38BDF8]" />
+                      <span>Room: {nextClass.room_no || nextClass.room_number || 'TBA'}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-5 text-center flex flex-col items-center justify-center gap-1">
+                    <p className="text-[13px] text-[#9BB2BC]">No routine slots scheduled for your cohort.</p>
+                    <p className="text-[11.5px] text-[#9BB2BC]/70">Class Representatives can register periods in the CR Panel.</p>
+                  </div>
+                )}
+
+                <div className="pt-3 mt-3 border-t border-[#1F353C]/60 flex items-center justify-between text-[11.5px]">
+                  <span className="text-[#9BB2BC]">
+                    {user?.department ? `${user.department} Schedule` : 'Academic Schedule'}
+                  </span>
                   <Link
-                    to="/tasks"
-                    className="text-[11.5px] text-[#00D084] hover:underline flex items-center gap-1 font-semibold"
+                    to="/cr-panel"
+                    className="text-[#00D084] hover:underline font-medium inline-flex items-center gap-1"
                   >
-                    Manage <ChevronRight className="w-3.5 h-3.5" />
+                    View routine <ArrowRight className="w-3 h-3" />
                   </Link>
                 </div>
               </div>
 
-              {tasksLoading ? (
-                <div className="py-6 text-center text-[12.5px] text-[#9BB2BC]">Loading course deadlines...</div>
-              ) : activeTasks.length === 0 ? (
-                <div className="py-6 text-center text-[12.5px] text-[#9BB2BC]">
-                  No active deadlines! You're completely up to date.
+              {/* Dynamic Interactive Mini Calendar */}
+              <div className="bg-[#15242A] border border-[#1F353C] rounded-[16px] p-4 sm:p-5 shadow-[0_4px_16px_rgba(0,0,0,0.18)]">
+                <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[#1F353C]/60">
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="w-4 h-4 text-[#00D084]" />
+                    <h3 className="text-[14.5px] font-bold text-white">
+                      {calMonthName} {calYear}
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={handlePrevMonth}
+                      title="Previous Month"
+                      className="p-1 rounded-[6px] hover:bg-[#192C34] text-[#9BB2BC] hover:text-white transition-colors cursor-pointer"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCalendarDate(new Date());
+                        setSelectedDay(null);
+                      }}
+                      title="Today"
+                      className="px-2 py-0.5 text-[11px] font-semibold text-[#00D084] hover:bg-[#192C34] rounded-[6px] transition-colors cursor-pointer"
+                    >
+                      Today
+                    </button>
+                    <button
+                      onClick={handleNextMonth}
+                      title="Next Month"
+                      className="p-1 rounded-[6px] hover:bg-[#192C34] text-[#9BB2BC] hover:text-white transition-colors cursor-pointer"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <div className="flex flex-col divide-y divide-[#1F353C]/50">
-                  {activeTasks.map((task) => {
-                    const isDone = Boolean(task.is_completed);
-                    return (
-                      <div
-                        key={task.id}
-                        onClick={() =>
-                          toggleTaskMutation.mutate({
-                            taskId: task.id,
-                            isCurrentlyCompleted: isDone,
-                          })
-                        }
-                        className="py-2.5 px-2 rounded-[8px] hover:bg-[#192C34]/40 transition-all cursor-pointer flex items-center justify-between group"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <button
-                            type="button"
-                            aria-label={`Toggle task ${task.title}`}
-                            className={`w-4.5 h-4.5 rounded-[5px] border flex items-center justify-center transition-all shrink-0 ${
-                              isDone
-                                ? 'bg-[#00D084] border-[#00D084] text-[#0B1316]'
-                                : 'border-[#1F353C] group-hover:border-[#00D084]'
-                            }`}
-                          >
-                            {isDone && <Check className="w-3 h-3 stroke-[3]" />}
-                          </button>
-                          <div className="flex flex-col min-w-0">
-                            <span
-                              className={`text-[13px] font-medium transition-all truncate ${
-                                isDone ? 'line-through text-[#9BB2BC]' : 'text-white group-hover:text-[#00D084]'
-                              }`}
-                            >
-                              {task.title}
-                            </span>
-                            <span className="text-[11.5px] text-[#9BB2BC] flex items-center gap-1.5 mt-0.5">
-                              <Clock className="w-3 h-3 text-[#38BDF8]" /> Due:{' '}
-                              {new Date(task.due_date).toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                          </div>
-                        </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
-                          {task.course_code && (
-                            <Badge variant="muted" size="xs">
-                              {task.course_code}
-                            </Badge>
-                          )}
-                          <Badge
-                            variant={
-                              task.priority === 'High'
-                                ? 'danger'
-                                : task.priority === 'Medium'
-                                ? 'warning'
-                                : 'muted'
-                            }
-                            size="xs"
-                          >
-                            {task.priority}
-                          </Badge>
-                        </div>
-                      </div>
+                <div className="grid grid-cols-7 gap-1 text-center select-none text-[11.5px]">
+                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
+                    <div key={d} className="text-[#9BB2BC] font-semibold py-1">
+                      {d}
+                    </div>
+                  ))}
+
+                  {/* Leading Blank Cells */}
+                  {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                    <div key={`blank-${i}`} className="py-1.5" />
+                  ))}
+
+                  {/* Actual Days of the Month */}
+                  {Array.from({ length: daysInCalMonth }, (_, i) => i + 1).map((day) => {
+                    const isSelected = selectedDay === day;
+                    const hasIndicator = dayHasIndicator(day);
+                    const isTodayDate = isCurrentToday(day);
+
+                    return (
+                      <button
+                        key={day}
+                        onClick={() => setSelectedDay(isSelected ? null : day)}
+                        className={`relative py-1.5 rounded-[8px] font-medium transition-all cursor-pointer flex flex-col items-center justify-center ${
+                          isSelected
+                            ? 'bg-[#00D084] text-[#0B1316] font-bold shadow-[0_0_12px_rgba(0,208,132,0.4)] ring-2 ring-[#00D084]/40'
+                            : isTodayDate
+                            ? 'border border-[#00D084]/60 text-white hover:bg-[#192C34]'
+                            : 'text-[#D2DFE5] hover:bg-[#192C34]'
+                        }`}
+                      >
+                        <span>{day}</span>
+                        {hasIndicator && !isSelected && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#00D084] mt-0.5" />
+                        )}
+                      </button>
                     );
                   })}
                 </div>
-              )}
-            </div>
-
-            {/* Pinned Announcements */}
-            <div className="bg-[#15242A] border border-[#1F353C] rounded-[16px] p-4 sm:p-5 shadow-[0_4px_16px_rgba(0,0,0,0.18)] flex flex-col gap-2.5">
-              <div className="flex items-center justify-between pb-2.5 border-b border-[#1F353C]/60">
-                <div className="flex items-center gap-2">
-                  <Megaphone className="w-4 h-4 text-[#38BDF8]" />
-                  <h3 className="text-[14.5px] font-bold text-white">Cohort Notices & Bulletins</h3>
-                </div>
-                <Link
-                  to="/announcements"
-                  className="text-[11.5px] text-[#00D084] hover:underline flex items-center gap-1 font-semibold"
-                >
-                  View All <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
               </div>
 
-              {noticesLoading ? (
-                <div className="py-6 text-center text-[12.5px] text-[#9BB2BC]">Loading notices...</div>
-              ) : pinnedNotices.length === 0 ? (
-                <div className="py-6 text-center text-[12.5px] text-[#9BB2BC]">No pinned announcements currently.</div>
-              ) : (
-                <div className="flex flex-col gap-2.5">
-                  {pinnedNotices.map((notice) => (
-                    <div
-                      key={notice.id}
-                      className="p-3.5 rounded-[12px] bg-[#0E171B] border border-[#1F353C] flex flex-col gap-1.5"
+              {/* Upcoming Events with Dynamic Countdown Badges */}
+              <div className="bg-[#15242A] border border-[#1F353C] rounded-[16px] p-4 sm:p-5 shadow-[0_4px_16px_rgba(0,0,0,0.18)] flex flex-col gap-2.5">
+                <div className="flex items-center justify-between pb-2.5 border-b border-[#1F353C]/60">
+                  <h3 className="text-[14.5px] font-bold text-white">Upcoming Events</h3>
+                  <Link
+                    to="/events"
+                    className="text-[11.5px] text-[#00D084] hover:underline flex items-center gap-1 font-semibold"
+                  >
+                    <span>View All</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+
+                {eventsLoading ? (
+                  <div className="py-6 text-center text-[12.5px] text-[#9BB2BC]">Loading events...</div>
+                ) : activeEvents.length === 0 ? (
+                  <div className="py-6 text-center text-[12.5px] text-[#9BB2BC]">No upcoming events scheduled.</div>
+                ) : (
+                  <div className="flex flex-col divide-y divide-[#1F353C]/60">
+                    {activeEvents.map((ev) => {
+                      const countdown = getEventCountdown(ev.event_date);
+                      return (
+                        <Link
+                          key={ev.id}
+                          to="/events"
+                          className="py-2.5 flex items-center justify-between group cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-[10px] bg-[#0E171B] border border-[#1F353C] flex flex-col items-center justify-center text-center shrink-0">
+                              <span className="text-[10px] uppercase font-bold text-[#9BB2BC]">
+                                {new Date(ev.event_date).toLocaleString('default', { month: 'short' })}
+                              </span>
+                              <span className="text-[14px] font-bold text-[#00D084]">
+                                {new Date(ev.event_date).getDate()}
+                              </span>
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[13px] font-semibold text-white group-hover:text-[#00D084] transition-colors truncate">
+                                {ev.title}
+                              </span>
+                              <div className="flex items-center gap-3 text-[11.5px] text-[#9BB2BC] mt-0.5 truncate">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-[#38BDF8]" /> {ev.time || 'TBA'}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="w-3 h-3 text-[#38BDF8]" /> {ev.location || 'Campus'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge variant={countdown.variant} size="xs">
+                              {countdown.label}
+                            </Badge>
+                            <ChevronRight className="w-4 h-4 text-[#9BB2BC] group-hover:text-white transition-colors" />
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Column (7 cols): Workload, Tasks, Bulletins & Real Live Activity Feed */}
+            <div className="lg:col-span-7 flex flex-col gap-4 sm:gap-5">
+              {/* Active Deadlines with Interactive Workload Progress */}
+              <div className="bg-[#15242A] border border-[#1F353C] rounded-[16px] p-4 sm:p-5 shadow-[0_4px_16px_rgba(0,0,0,0.18)] flex flex-col gap-3">
+                <div className="flex items-center justify-between pb-2.5 border-b border-[#1F353C]/60">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-[#00D084]" />
+                    <h3 className="text-[14.5px] font-bold text-white">Coursework & Deadlines</h3>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Badge variant="mint" size="xs">
+                      {completedTasksCount} of {totalTasksCount} Done ({completionRate}%)
+                    </Badge>
+                    <Link
+                      to="/tasks"
+                      className="text-[11.5px] text-[#00D084] hover:underline flex items-center gap-1 font-semibold"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Pin className="w-3.5 h-3.5 text-[#00D084]" />
-                          <Badge
-                            variant={
-                              notice.priority === 'Urgent'
-                                ? 'danger'
-                                : notice.priority === 'Important'
-                                ? 'warning'
-                                : 'info'
-                            }
-                            size="xs"
+                      Manage <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+
+                {/* SaaS Progress Meter */}
+                {totalTasksCount > 0 && (
+                  <div className="w-full bg-[#0E171B] border border-[#1F353C] rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-[#00D084] to-[#38BDF8] h-full rounded-full transition-all duration-300"
+                      style={{ width: `${completionRate}%` }}
+                    />
+                  </div>
+                )}
+
+                {tasksLoading ? (
+                  <div className="py-6 text-center text-[12.5px] text-[#9BB2BC]">Loading course deadlines...</div>
+                ) : activeTasks.length === 0 ? (
+                  <div className="py-6 text-center text-[12.5px] text-[#9BB2BC]">
+                    No active deadlines! You're completely up to date.
+                  </div>
+                ) : (
+                  <div className="flex flex-col divide-y divide-[#1F353C]/50">
+                    {activeTasks.map((task) => {
+                      const isDone = Boolean(task.is_completed);
+                      return (
+                        <div
+                          key={task.id}
+                          onClick={() =>
+                            toggleTaskMutation.mutate({
+                              taskId: task.id,
+                              isCurrentlyCompleted: isDone,
+                            })
+                          }
+                          className="py-2.5 px-2 rounded-[8px] hover:bg-[#192C34]/40 transition-all cursor-pointer flex items-center justify-between group"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <button
+                              type="button"
+                              aria-label={`Toggle task ${task.title}`}
+                              className={`w-4.5 h-4.5 rounded-[5px] border flex items-center justify-center transition-all shrink-0 ${
+                                isDone
+                                  ? 'bg-[#00D084] border-[#00D084] text-[#0B1316]'
+                                  : 'border-[#1F353C] group-hover:border-[#00D084]'
+                              }`}
+                            >
+                              {isDone && <Check className="w-3 h-3 stroke-[3]" />}
+                            </button>
+                            <div className="flex flex-col min-w-0">
+                              <span
+                                className={`text-[13px] font-medium transition-all truncate ${
+                                  isDone ? 'line-through text-[#9BB2BC]' : 'text-white group-hover:text-[#00D084]'
+                                }`}
+                              >
+                                {task.title}
+                              </span>
+                              <span className="text-[11.5px] text-[#9BB2BC] flex items-center gap-1.5 mt-0.5">
+                                <Clock className="w-3 h-3 text-[#38BDF8]" /> Due:{' '}
+                                {new Date(task.due_date).toLocaleDateString(undefined, {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {task.course_code && (
+                              <Badge variant="muted" size="xs">
+                                {task.course_code}
+                              </Badge>
+                            )}
+                            <Badge
+                              variant={
+                                task.priority === 'High'
+                                  ? 'danger'
+                                  : task.priority === 'Medium'
+                                  ? 'warning'
+                                  : 'muted'
+                              }
+                              size="xs"
+                            >
+                              {task.priority}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Dynamic Live Activity Feed (Aggregated real database items) */}
+              <div className="bg-[#15242A] border border-[#1F353C] rounded-[16px] p-4 sm:p-5 shadow-[0_4px_16px_rgba(0,0,0,0.18)] flex flex-col gap-2.5">
+                <div className="flex items-center justify-between pb-2.5 border-b border-[#1F353C]/60">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-[#00D084]" />
+                    <h3 className="text-[14.5px] font-bold text-white">Live Activity Feed</h3>
+                  </div>
+                  <span className="text-[11px] text-[#9BB2BC]">Real-time cohort updates</span>
+                </div>
+
+                {recentActivities.length === 0 ? (
+                  <div className="py-6 text-center text-[12.5px] text-[#9BB2BC]">
+                    No recent cohort activity recorded.
+                  </div>
+                ) : (
+                  <div className="flex flex-col divide-y divide-[#1F353C]/50">
+                    {recentActivities.map((act) => (
+                      <Link
+                        key={act.id}
+                        to={act.link}
+                        className="py-2.5 px-2 rounded-[8px] hover:bg-[#192C34]/40 transition-all flex items-center justify-between group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
+                              act.type === 'notice'
+                                ? 'bg-[#38BDF8]/10 text-[#38BDF8] border-[#38BDF8]/20'
+                                : act.type === 'event'
+                                ? 'bg-[#00D084]/10 text-[#00D084] border-[#00D084]/20'
+                                : act.type === 'project'
+                                ? 'bg-[#A855F7]/10 text-[#A855F7] border-[#A855F7]/20'
+                                : 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/20'
+                            }`}
                           >
-                            {notice.priority}
-                          </Badge>
-                          <span className="text-[11px] uppercase font-bold tracking-wider text-[#9BB2BC]">
-                            {notice.category}
+                            {act.type === 'notice' && <Megaphone className="w-3.5 h-3.5" />}
+                            {act.type === 'event' && <CalendarIcon className="w-3.5 h-3.5" />}
+                            {act.type === 'project' && <FolderGit2 className="w-3.5 h-3.5" />}
+                            {act.type === 'task' && <CheckSquare className="w-3.5 h-3.5" />}
+                          </div>
+
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-[13px] font-medium text-white group-hover:text-[#00D084] transition-colors truncate">
+                              {act.title}
+                            </span>
+                            <span className="text-[11.5px] text-[#9BB2BC] truncate">{act.subtitle}</span>
+                          </div>
+                        </div>
+
+                        <span className="text-[11px] text-[#9BB2BC] shrink-0">
+                          {formatRelativeTime(act.timestamp)}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Pinned Announcements */}
+              <div className="bg-[#15242A] border border-[#1F353C] rounded-[16px] p-4 sm:p-5 shadow-[0_4px_16px_rgba(0,0,0,0.18)] flex flex-col gap-2.5">
+                <div className="flex items-center justify-between pb-2.5 border-b border-[#1F353C]/60">
+                  <div className="flex items-center gap-2">
+                    <Megaphone className="w-4 h-4 text-[#38BDF8]" />
+                    <h3 className="text-[14.5px] font-bold text-white">Cohort Bulletins</h3>
+                  </div>
+                  <Link
+                    to="/announcements"
+                    className="text-[11.5px] text-[#00D084] hover:underline flex items-center gap-1 font-semibold"
+                  >
+                    View All <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+
+                {noticesLoading ? (
+                  <div className="py-6 text-center text-[12.5px] text-[#9BB2BC]">Loading notices...</div>
+                ) : pinnedNotices.length === 0 ? (
+                  <div className="py-6 text-center text-[12.5px] text-[#9BB2BC]">No pinned announcements currently.</div>
+                ) : (
+                  <div className="flex flex-col gap-2.5">
+                    {pinnedNotices.map((notice) => (
+                      <div
+                        key={notice.id}
+                        className="p-3.5 rounded-[12px] bg-[#0E171B] border border-[#1F353C] flex flex-col gap-1.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Pin className="w-3.5 h-3.5 text-[#00D084]" />
+                            <Badge
+                              variant={
+                                notice.priority === 'Urgent'
+                                  ? 'danger'
+                                  : notice.priority === 'Important'
+                                  ? 'warning'
+                                  : 'info'
+                              }
+                              size="xs"
+                            >
+                              {notice.priority}
+                            </Badge>
+                            <span className="text-[11px] uppercase font-bold tracking-wider text-[#9BB2BC]">
+                              {notice.category}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-[#9BB2BC]">
+                            {formatRelativeTime(notice.created_at)}
                           </span>
                         </div>
-                        <span className="text-[11px] text-[#9BB2BC]">
-                          {new Date(notice.created_at).toLocaleDateString()}
-                        </span>
+                        <h4 className="text-[14px] font-bold text-white tracking-tight">{notice.title}</h4>
+                        <p className="text-[12.5px] text-[#9BB2BC] line-clamp-2 leading-relaxed">
+                          {notice.description}
+                        </p>
                       </div>
-                      <h4 className="text-[14px] font-bold text-white tracking-tight">{notice.title}</h4>
-                      <p className="text-[12.5px] text-[#9BB2BC] line-clamp-2 leading-relaxed">
-                        {notice.description}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Quick Actions Card */}
-            <div className="bg-[#15242A] border border-[#1F353C] rounded-[16px] p-4 sm:p-5 shadow-[0_4px_16px_rgba(0,0,0,0.18)] flex items-center justify-between flex-wrap gap-3.5">
-              <div>
-                <h4 className="text-[14px] font-bold text-white">Need to submit coursework or an event?</h4>
-                <p className="text-[12px] text-[#9BB2BC] mt-0.5">
-                  Class representatives review student submissions before posting to the cohort flight deck.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  leftIcon={<BookOpen className="w-3.5 h-3.5" />}
-                  onClick={() => navigate('/resources')}
-                >
-                  Browse Notes
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  leftIcon={<Plus className="w-3.5 h-3.5" />}
-                  onClick={() => navigate('/tasks')}
-                >
-                  Create Task
-                </Button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </AppLayout>
   );
 };

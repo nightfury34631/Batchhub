@@ -23,6 +23,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { useToast } from '../../components/ui/Toast';
+import { ListSkeleton } from '../../components/ui/Skeleton';
 
 export interface EventItem {
   id: number;
@@ -44,6 +45,21 @@ interface EventsApiResponse {
   pastEvents?: EventItem[];
   pendingEvents?: EventItem[];
 }
+
+// Dynamic countdown helper
+const getEventCountdown = (dateStr: string) => {
+  const target = new Date(dateStr);
+  const now = new Date();
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const targetDate = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
+  const diffDays = Math.round((targetDate - todayDate) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return { label: 'Past', variant: 'muted' as const };
+  if (diffDays === 0) return { label: 'Today', variant: 'danger' as const };
+  if (diffDays === 1) return { label: 'Tomorrow', variant: 'warning' as const };
+  if (diffDays <= 7) return { label: `In ${diffDays}d`, variant: 'mint' as const };
+  return { label: `In ${diffDays}d`, variant: 'info' as const };
+};
 
 export const EventsView: React.FC = () => {
   const { user } = useAuthStore();
@@ -397,14 +413,14 @@ export const EventsView: React.FC = () => {
 
             {/* Event List */}
             {isLoading ? (
-              <div className="py-16 text-center text-[13px] text-[#9BB2BC]">Loading events...</div>
+              <ListSkeleton items={4} />
             ) : currentList.length === 0 ? (
               <div className="bg-[#15242A] border border-[#1F353C] rounded-[18px] p-12 text-center flex flex-col items-center justify-center">
                 <CalendarIcon className="w-10 h-10 text-[#9BB2BC] mb-2" />
                 <h3 className="text-[16px] font-bold text-white">No Events Found</h3>
                 <p className="text-[13px] text-[#9BB2BC] mt-1">
                   {selectedDay
-                    ? `No events scheduled on November ${selectedDay}.`
+                    ? `No events scheduled on ${calendarDate.toLocaleString('default', { month: 'long' })} ${selectedDay}.`
                     : 'There are no events matching your criteria in this view.'}
                 </p>
                 {selectedDay && (
@@ -418,6 +434,7 @@ export const EventsView: React.FC = () => {
                 {currentList.map((ev) => {
                   const evDate = new Date(ev.event_date);
                   const isPending = activeTab === 'pending';
+                  const countdown = getEventCountdown(ev.event_date);
 
                   return (
                     <div
@@ -444,6 +461,9 @@ export const EventsView: React.FC = () => {
                                 {ev.department}
                               </Badge>
                             )}
+                            <Badge variant={countdown.variant} size="xs">
+                              {countdown.label}
+                            </Badge>
                           </div>
 
                           <div className="flex items-center gap-3.5 text-[12.5px] text-[#9BB2BC] mt-1.5 flex-wrap">

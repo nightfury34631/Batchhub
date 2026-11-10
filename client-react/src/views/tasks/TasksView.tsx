@@ -24,6 +24,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { useToast } from '../../components/ui/Toast';
+import { CardGridSkeleton } from '../../components/ui/Skeleton';
 
 export interface TaskItem {
   id: number;
@@ -291,93 +292,121 @@ export const TasksView: React.FC = () => {
           </Button>
         </div>
 
-        {/* 2. Workload Metrics Strip */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <button
-            onClick={() => setActiveTab('overdue')}
-            className={`p-4 rounded-[16px] bg-[#15242A] border text-left transition-all cursor-pointer ${
-              activeTab === 'overdue' ? 'border-[#F87171] bg-[#192C34]' : 'border-[#1F353C] hover:border-[#F87171]/40'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[11.5px] uppercase font-bold tracking-wider text-[#9BB2BC]">
-                Overdue
-              </span>
-              <span className="w-2 h-2 rounded-full bg-[#F87171]" />
+        {/* 2. Workload Metrics & Progress Strip */}
+        <div className="space-y-3">
+          {tasks.length > 0 && (
+            <div className="bg-[#15242A] border border-[#1F353C] rounded-[14px] p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="text-[12.5px] font-semibold text-white">Coursework Completion</span>
+                <Badge variant="mint" size="xs">
+                  {completedCount} of {tasks.length} Done ({tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 100}%)
+                </Badge>
+              </div>
+              <div className="w-full sm:w-64 bg-[#0E171B] border border-[#1F353C] rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-[#00D084] to-[#38BDF8] h-full rounded-full transition-all duration-300"
+                  style={{ width: `${tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 100}%` }}
+                />
+              </div>
             </div>
-            <span className="text-[26px] font-bold text-[#F87171] mt-1 block">{overdueCount}</span>
-            <span className="text-[12px] text-[#9BB2BC]">Requires attention</span>
-          </button>
+          )}
 
-          <button
-            onClick={() => setActiveTab('today')}
-            className={`p-4 rounded-[16px] bg-[#15242A] border text-left transition-all cursor-pointer ${
-              activeTab === 'today' ? 'border-[#FBBF24] bg-[#192C34]' : 'border-[#1F353C] hover:border-[#FBBF24]/40'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[11.5px] uppercase font-bold tracking-wider text-[#9BB2BC]">
-                Due Today
-              </span>
-              <span className="w-2 h-2 rounded-full bg-[#FBBF24]" />
-            </div>
-            <span className="text-[26px] font-bold text-[#FBBF24] mt-1 block">{dueTodayCount}</span>
-            <span className="text-[12px] text-[#9BB2BC]">Impending cutoff</span>
-          </button>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <button
+              onClick={() => setActiveTab('overdue')}
+              className={`p-4 rounded-[16px] bg-[#15242A] border text-left transition-all cursor-pointer ${
+                activeTab === 'overdue' ? 'border-[#F87171] bg-[#192C34]' : 'border-[#1F353C] hover:border-[#F87171]/40'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11.5px] uppercase font-bold tracking-wider text-[#9BB2BC]">
+                  Overdue
+                </span>
+                <span className="w-2 h-2 rounded-full bg-[#F87171]" />
+              </div>
+              <span className="text-[26px] font-bold text-[#F87171] mt-1 block">{overdueCount}</span>
+              <span className="text-[12px] text-[#9BB2BC]">Requires attention</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('active')}
-            className={`p-4 rounded-[16px] bg-[#15242A] border text-left transition-all cursor-pointer ${
-              activeTab === 'active' ? 'border-[#38BDF8] bg-[#192C34]' : 'border-[#1F353C] hover:border-[#38BDF8]/40'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[11.5px] uppercase font-bold tracking-wider text-[#9BB2BC]">
-                Active Tasks
-              </span>
-              <span className="w-2 h-2 rounded-full bg-[#38BDF8]" />
-            </div>
-            <span className="text-[26px] font-bold text-white mt-1 block">{activeCount}</span>
-            <span className="text-[12px] text-[#9BB2BC]">In pipeline</span>
-          </button>
+            <button
+              onClick={() => setActiveTab('today')}
+              className={`p-4 rounded-[16px] bg-[#15242A] border text-left transition-all cursor-pointer ${
+                activeTab === 'today' ? 'border-[#FBBF24] bg-[#192C34]' : 'border-[#1F353C] hover:border-[#FBBF24]/40'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11.5px] uppercase font-bold tracking-wider text-[#9BB2BC]">
+                  Due Today
+                </span>
+                <span className="w-2 h-2 rounded-full bg-[#FBBF24]" />
+              </div>
+              <span className="text-[26px] font-bold text-[#FBBF24] mt-1 block">{dueTodayCount}</span>
+              <span className="text-[12px] text-[#9BB2BC]">Impending cutoff</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('completed')}
-            className={`p-4 rounded-[16px] bg-[#15242A] border text-left transition-all cursor-pointer ${
-              activeTab === 'completed' ? 'border-[#00D084] bg-[#192C34]' : 'border-[#1F353C] hover:border-[#00D084]/40'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[11.5px] uppercase font-bold tracking-wider text-[#9BB2BC]">
-                Completed
-              </span>
-              <span className="w-2 h-2 rounded-full bg-[#00D084]" />
-            </div>
-            <span className="text-[26px] font-bold text-[#00D084] mt-1 block">{completedCount}</span>
-            <span className="text-[12px] text-[#9BB2BC]">Submitted & archived</span>
-          </button>
+            <button
+              onClick={() => setActiveTab('active')}
+              className={`p-4 rounded-[16px] bg-[#15242A] border text-left transition-all cursor-pointer ${
+                activeTab === 'active' ? 'border-[#38BDF8] bg-[#192C34]' : 'border-[#1F353C] hover:border-[#38BDF8]/40'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11.5px] uppercase font-bold tracking-wider text-[#9BB2BC]">
+                  Active Tasks
+                </span>
+                <span className="w-2 h-2 rounded-full bg-[#38BDF8]" />
+              </div>
+              <span className="text-[26px] font-bold text-white mt-1 block">{activeCount}</span>
+              <span className="text-[12px] text-[#9BB2BC]">In pipeline</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('completed')}
+              className={`p-4 rounded-[16px] bg-[#15242A] border text-left transition-all cursor-pointer ${
+                activeTab === 'completed' ? 'border-[#00D084] bg-[#192C34]' : 'border-[#1F353C] hover:border-[#00D084]/40'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11.5px] uppercase font-bold tracking-wider text-[#9BB2BC]">
+                  Completed
+                </span>
+                <span className="w-2 h-2 rounded-full bg-[#00D084]" />
+              </div>
+              <span className="text-[26px] font-bold text-[#00D084] mt-1 block">{completedCount}</span>
+              <span className="text-[12px] text-[#9BB2BC]">Submitted & archived</span>
+            </button>
+          </div>
         </div>
 
         {/* 3. Navigation Filter Tabs */}
         <div className="flex items-center justify-between border-b border-[#1F353C] pb-3 overflow-x-auto gap-2">
           <div className="flex items-center gap-1.5 shrink-0">
             {[
-              { id: 'all', label: 'All Deadlines' },
-              { id: 'active', label: 'Active' },
-              { id: 'today', label: 'Due Today' },
-              { id: 'overdue', label: 'Overdue' },
-              { id: 'completed', label: 'Completed' },
+              { id: 'all', label: 'All Deadlines', count: tasks.length },
+              { id: 'active', label: 'Active', count: activeCount },
+              { id: 'today', label: 'Due Today', count: dueTodayCount },
+              { id: 'overdue', label: 'Overdue', count: overdueCount },
+              { id: 'completed', label: 'Completed', count: completedCount },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                className={`px-3 py-1.5 rounded-[10px] text-[13px] font-semibold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-[10px] text-[13px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                   activeTab === tab.id
                     ? 'bg-[#15242A] text-[#00D084] border border-[#00D084]/30 shadow-sm'
                     : 'text-[#9BB2BC] hover:text-white hover:bg-[#15242A]/60'
                 }`}
               >
-                {tab.label}
+                <span>{tab.label}</span>
+                <span
+                  className={`text-[11px] px-1.5 py-0.2 rounded-full ${
+                    activeTab === tab.id
+                      ? 'bg-[#00D084]/20 text-[#00D084]'
+                      : 'bg-[#1F353C] text-[#9BB2BC]'
+                  }`}
+                >
+                  {tab.count}
+                </span>
               </button>
             ))}
 
@@ -474,7 +503,7 @@ export const TasksView: React.FC = () => {
 
         {/* 5. Main Task Content Render */}
         {isLoading ? (
-          <div className="py-16 text-center text-[13.5px] text-[#9BB2BC]">Loading coursework tasks...</div>
+          <CardGridSkeleton count={4} />
         ) : activeTab === 'moderation' ? (
           /* CR/Admin Moderation Queue Panel */
           <div className="bg-[#15242A] border border-[#1F353C] rounded-[18px] p-6 shadow-[0_12px_32px_rgba(0,0,0,0.25)] flex flex-col gap-4">

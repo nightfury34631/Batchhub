@@ -22,6 +22,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { useToast } from '../../components/ui/Toast';
+import { ListSkeleton } from '../../components/ui/Skeleton';
 
 export interface NoticeItem {
   id: number;
@@ -140,6 +141,28 @@ export const AnnouncementsView: React.FC = () => {
     });
   }, [notices, selectedCategory, searchQuery]);
 
+  const categoryCounts = useMemo(() => {
+    return {
+      all: notices.length,
+      academic: notices.filter((n) => n.category?.toLowerCase() === 'academic').length,
+      examination: notices.filter((n) => n.category?.toLowerCase() === 'examination').length,
+      event: notices.filter((n) => n.category?.toLowerCase() === 'event').length,
+      general: notices.filter((n) => n.category?.toLowerCase() === 'general').length,
+    };
+  }, [notices]);
+
+  const formatRelativeTime = (dateStr?: string): string => {
+    if (!dateStr) return 'Recently';
+    const time = new Date(dateStr).getTime();
+    if (isNaN(time)) return 'Recently';
+    const diffSec = Math.floor((Date.now() - time) / 1000);
+    if (diffSec < 60) return 'Just now';
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+    if (diffSec < 172800) return 'Yesterday';
+    return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
   const handleSubmitCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title.trim()) {
@@ -191,22 +214,31 @@ export const AnnouncementsView: React.FC = () => {
           {/* Category Tabs */}
           <div className="flex items-center gap-1.5 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
             {[
-              { id: 'all', label: 'All Notices' },
-              { id: 'academic', label: 'Academic' },
-              { id: 'examination', label: 'Examinations' },
-              { id: 'event', label: 'Events' },
-              { id: 'general', label: 'General' },
+              { id: 'all', label: 'All Notices', count: categoryCounts.all },
+              { id: 'academic', label: 'Academic', count: categoryCounts.academic },
+              { id: 'examination', label: 'Examinations', count: categoryCounts.examination },
+              { id: 'event', label: 'Events', count: categoryCounts.event },
+              { id: 'general', label: 'General', count: categoryCounts.general },
             ].map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-[10px] text-[13px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-[10px] text-[13px] font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                   selectedCategory === cat.id
-                    ? 'bg-[#0E171B] text-[#00D084] border border-[#00D084]/30'
-                    : 'text-[#9BB2BC] hover:text-white'
+                    ? 'bg-[#0E171B] text-[#00D084] border border-[#00D084]/30 shadow-sm'
+                    : 'text-[#9BB2BC] hover:text-white hover:bg-[#0E171B]/50'
                 }`}
               >
-                {cat.label}
+                <span>{cat.label}</span>
+                <span
+                  className={`text-[11px] px-1.5 py-0.2 rounded-full ${
+                    selectedCategory === cat.id
+                      ? 'bg-[#00D084]/20 text-[#00D084]'
+                      : 'bg-[#1F353C] text-[#9BB2BC]'
+                  }`}
+                >
+                  {cat.count}
+                </span>
               </button>
             ))}
           </div>
@@ -226,7 +258,7 @@ export const AnnouncementsView: React.FC = () => {
 
         {/* Notices Feed */}
         {isLoading ? (
-          <div className="py-16 text-center text-[13px] text-[#9BB2BC]">Loading announcements...</div>
+          <ListSkeleton items={4} />
         ) : filteredNotices.length === 0 ? (
           <div className="bg-[#15242A] border border-[#1F353C] rounded-[18px] p-12 text-center flex flex-col items-center justify-center">
             <Megaphone className="w-10 h-10 text-[#9BB2BC] mb-2" />
@@ -284,11 +316,7 @@ export const AnnouncementsView: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <span className="text-[12px] text-[#9BB2BC] flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 text-[#38BDF8]" />
-                        {new Date(notice.created_at).toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
+                        {formatRelativeTime(notice.created_at)}
                       </span>
 
                       {isCRorAdmin && (
