@@ -1,7 +1,7 @@
 {
   "name": "batchhub",
   "version": "2.0.0",
-  "description": "BatchHub — Centralized Academic Management & Collaboration Platform",
+  "description": "BatchHub \u2014 Centralized Academic Management & Collaboration Platform",
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",

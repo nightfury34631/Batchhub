@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
   Search,
@@ -11,16 +11,16 @@ import {
   AlertCircle,
   Upload,
   Trash2,
-} from 'lucide-react';
-import { AppLayout } from '../../components/layout/AppLayout';
-import { useAuthStore } from '../../stores/useAuthStore';
-import { apiClient } from '../../services/apiClient';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
-import { Badge } from '../../components/ui/Badge';
-import { Modal } from '../../components/ui/Modal';
-import { useToast } from '../../components/ui/Toast';
+} from "lucide-react";
+import { AppLayout } from "../../components/layout/AppLayout";
+import { useAuthStore } from "../../stores/useAuthStore";
+import { apiClient } from "../../services/apiClient";
+import { Button } from "../../components/ui/Button";
+import { Input } from "../../components/ui/Input";
+import { Select } from "../../components/ui/Select";
+import { Badge } from "../../components/ui/Badge";
+import { Modal } from "../../components/ui/Modal";
+import { useToast } from "../../components/ui/Toast";
 
 export interface MaterialItem {
   id: number;
@@ -28,7 +28,13 @@ export interface MaterialItem {
   course_title?: string;
   title: string;
   file_url: string;
-  category: 'Lecture Notes' | 'Assignment' | 'Book' | 'Question Bank' | 'Other' | string;
+  category:
+    | "Lecture Notes"
+    | "Assignment"
+    | "Book"
+    | "Question Bank"
+    | "Other"
+    | string;
   uploaded_by?: number;
   uploader_name?: string;
   status?: string;
@@ -46,25 +52,25 @@ export const ResourcesView: React.FC = () => {
   const { success, error } = useToast();
   const queryClient = useQueryClient();
 
-  const isCRorAdmin = user?.role === 'cr' || user?.role === 'admin';
+  const isCRorAdmin = user?.role === "cr" || user?.role === "admin";
 
   // Filters & State
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   // Form
   const [formData, setFormData] = useState({
-    title: '',
-    course_code: '',
-    category: 'Lecture Notes',
-    file_url: '',
+    title: "",
+    course_code: "",
+    category: "Lecture Notes",
+    file_url: "",
   });
 
   // Query resources
   const { data, isLoading } = useQuery({
-    queryKey: ['resources-list'],
-    queryFn: () => apiClient.get<ResourcesApiResponse>('/resources'),
+    queryKey: ["resources-list"],
+    queryFn: () => apiClient.get<ResourcesApiResponse>("/resources"),
   });
 
   const materials = data?.materials || [];
@@ -72,40 +78,46 @@ export const ResourcesView: React.FC = () => {
   // Mutations
   const uploadResourceMutation = useMutation({
     mutationFn: async (payload: typeof formData) => {
-      return apiClient.post<{ success: boolean; message?: string }>('/resources', payload);
+      return apiClient.post<{ success: boolean; message?: string }>(
+        "/resources",
+        payload,
+      );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['resources-list'] });
+      queryClient.invalidateQueries({ queryKey: ["resources-list"] });
       setIsUploadModalOpen(false);
       setFormData({
-        title: '',
-        course_code: '',
-        category: 'Lecture Notes',
-        file_url: '',
+        title: "",
+        course_code: "",
+        category: "Lecture Notes",
+        file_url: "",
       });
       success(
         isCRorAdmin
-          ? 'Study material published to cohort library!'
-          : 'Material uploaded! Awaiting Class Representative moderation.'
+          ? "Study material published to cohort library!"
+          : "Material uploaded! Awaiting Class Representative moderation.",
       );
     },
-    onError: (err: Error) => error(err.message || 'Failed to upload material'),
+    onError: (err: Error) => error(err.message || "Failed to upload material"),
   });
 
   const deleteResourceMutation = useMutation({
     mutationFn: (id: number) => apiClient.delete(`/resources/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['resources-list'] });
-      queryClient.invalidateQueries({ queryKey: ['cr-resources'] });
-      success('Resource deleted from library!');
+      queryClient.invalidateQueries({ queryKey: ["resources-list"] });
+      queryClient.invalidateQueries({ queryKey: ["cr-resources"] });
+      success("Resource deleted from library!");
     },
-    onError: (err: Error) => error(err.message || 'Failed to delete resource'),
+    onError: (err: Error) => error(err.message || "Failed to delete resource"),
   });
 
   // Filtered materials
   const filteredMaterials = useMemo(() => {
     return materials.filter((m) => {
-      if (selectedCategory !== 'all' && m.category.toLowerCase() !== selectedCategory.toLowerCase()) {
+      if (
+        selectedCategory !== "all" &&
+        m.category.toLowerCase() !== selectedCategory.toLowerCase()
+      ) {
         return false;
       }
       if (searchQuery.trim()) {
@@ -124,15 +136,15 @@ export const ResourcesView: React.FC = () => {
   const handleSubmitUpload = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title.trim()) {
-      error('Material title is required');
+      error("Material title is required");
       return;
     }
     if (!formData.course_code.trim()) {
-      error('Course code is required');
+      error("Course code is required");
       return;
     }
     if (!formData.file_url.trim()) {
-      error('Resource file or cloud storage link is required');
+      error("Resource file or cloud storage link is required");
       return;
     }
     uploadResourceMutation.mutate(formData);
@@ -140,13 +152,13 @@ export const ResourcesView: React.FC = () => {
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'Lecture Notes':
+      case "Lecture Notes":
         return <FileText className="w-5 h-5 text-[#00D084]" />;
-      case 'Assignment':
+      case "Assignment":
         return <FileCode className="w-5 h-5 text-[#38BDF8]" />;
-      case 'Book':
+      case "Book":
         return <BookMarked className="w-5 h-5 text-[#A78BFA]" />;
-      case 'Question Bank':
+      case "Question Bank":
         return <HelpCircle className="w-5 h-5 text-[#FBBF24]" />;
       default:
         return <BookOpen className="w-5 h-5 text-[#9BB2BC]" />;
@@ -164,13 +176,16 @@ export const ResourcesView: React.FC = () => {
                 Study Library
               </span>
               <span className="text-[#1F353C]">•</span>
-              <span className="text-[12px] text-[#9BB2BC]">Notes, Slides & Previous Exams</span>
+              <span className="text-[12px] text-[#9BB2BC]">
+                Notes, Slides & Previous Exams
+              </span>
             </div>
             <h1 className="text-[22px] sm:text-[26px] font-bold text-white tracking-tight mt-0.5">
               Course Study Materials
             </h1>
             <p className="text-[13.5px] text-[#9BB2BC] mt-0.5">
-              Peer-contributed lecture slides, assignment solutions, syllabus notes, and exam question archives.
+              Peer-contributed lecture slides, assignment solutions, syllabus
+              notes, and exam question archives.
             </p>
           </div>
 
@@ -189,19 +204,19 @@ export const ResourcesView: React.FC = () => {
           {/* Category Tabs */}
           <div className="flex items-center gap-1.5 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
             {[
-              { id: 'all', label: 'All Resources' },
-              { id: 'Lecture Notes', label: 'Lecture Notes' },
-              { id: 'Assignment', label: 'Assignments' },
-              { id: 'Book', label: 'Books & Text' },
-              { id: 'Question Bank', label: 'Question Bank' },
+              { id: "all", label: "All Resources" },
+              { id: "Lecture Notes", label: "Lecture Notes" },
+              { id: "Assignment", label: "Assignments" },
+              { id: "Book", label: "Books & Text" },
+              { id: "Question Bank", label: "Question Bank" },
             ].map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`px-3 py-1.5 rounded-[10px] text-[13px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
                   selectedCategory === cat.id
-                    ? 'bg-[#0E171B] text-[#00D084] border border-[#00D084]/30'
-                    : 'text-[#9BB2BC] hover:text-white'
+                    ? "bg-[#0E171B] text-[#00D084] border border-[#00D084]/30"
+                    : "text-[#9BB2BC] hover:text-white"
                 }`}
               >
                 {cat.label}
@@ -224,11 +239,15 @@ export const ResourcesView: React.FC = () => {
 
         {/* Materials Grid */}
         {isLoading ? (
-          <div className="py-16 text-center text-[13px] text-[#9BB2BC]">Loading study materials...</div>
+          <div className="py-16 text-center text-[13px] text-[#9BB2BC]">
+            Loading study materials...
+          </div>
         ) : filteredMaterials.length === 0 ? (
           <div className="bg-[#15242A] border border-[#1F353C] rounded-[18px] p-12 text-center flex flex-col items-center justify-center">
             <BookOpen className="w-10 h-10 text-[#9BB2BC] mb-2" />
-            <h3 className="text-[16px] font-bold text-white">No Materials Found</h3>
+            <h3 className="text-[16px] font-bold text-white">
+              No Materials Found
+            </h3>
             <p className="text-[13px] text-[#9BB2BC] mt-1">
               There are no study materials matching this category or keyword.
             </p>
@@ -263,7 +282,9 @@ export const ResourcesView: React.FC = () => {
                       {mat.title}
                     </h3>
                     {mat.course_title && (
-                      <p className="text-[12px] text-[#7E96A0] mt-1 line-clamp-1">{mat.course_title}</p>
+                      <p className="text-[12px] text-[#7E96A0] mt-1 line-clamp-1">
+                        {mat.course_title}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -271,7 +292,7 @@ export const ResourcesView: React.FC = () => {
                 {/* Footer and Download link */}
                 <div className="pt-3 border-t border-[#1F353C]/60 flex items-center justify-between text-[12px] text-[#9BB2BC]">
                   <span className="truncate max-w-[130px]">
-                    By {mat.uploader_name || 'Student'}
+                    By {mat.uploader_name || "Student"}
                   </span>
 
                   <div className="flex items-center gap-2.5">
@@ -308,8 +329,8 @@ export const ResourcesView: React.FC = () => {
           title="Upload Academic Resource"
           description={
             isCRorAdmin
-              ? 'Add lecture notes, slides, or reference material directly to the cohort library.'
-              : 'Submit study material for Class Representative moderation before publishing.'
+              ? "Add lecture notes, slides, or reference material directly to the cohort library."
+              : "Submit study material for Class Representative moderation before publishing."
           }
           maxWidth="md"
         >
@@ -318,7 +339,9 @@ export const ResourcesView: React.FC = () => {
               label="Material Title *"
               placeholder="e.g., Operating Systems Chapter 3 - CPU Scheduling Notes"
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, title: e.target.value })
+              }
               required
             />
 
@@ -327,21 +350,25 @@ export const ResourcesView: React.FC = () => {
                 label="Course Code *"
                 placeholder="e.g., CSE-3201"
                 value={formData.course_code}
-                onChange={(e) => setFormData({ ...formData, course_code: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, course_code: e.target.value })
+                }
                 required
               />
 
               <Select
                 label="Material Category"
                 options={[
-                  { value: 'Lecture Notes', label: 'Lecture Notes' },
-                  { value: 'Assignment', label: 'Assignment Solution' },
-                  { value: 'Book', label: 'Reference Book' },
-                  { value: 'Question Bank', label: 'Question Bank' },
-                  { value: 'Other', label: 'Other Document' },
+                  { value: "Lecture Notes", label: "Lecture Notes" },
+                  { value: "Assignment", label: "Assignment Solution" },
+                  { value: "Book", label: "Reference Book" },
+                  { value: "Question Bank", label: "Question Bank" },
+                  { value: "Other", label: "Other Document" },
                 ]}
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, category: e.target.value })
+                }
               />
             </div>
 
@@ -349,14 +376,19 @@ export const ResourcesView: React.FC = () => {
               label="Cloud Storage / Document Link *"
               placeholder="https://drive.google.com/file/d/... or GitHub link"
               value={formData.file_url}
-              onChange={(e) => setFormData({ ...formData, file_url: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, file_url: e.target.value })
+              }
               required
             />
 
             {!isCRorAdmin && (
               <div className="text-[12.5px] text-[#FBBF24] bg-[#FBBF24]/10 border border-[#FBBF24]/20 p-3 rounded-[10px] flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>Student uploads require Class Representative verification before public display.</span>
+                <span>
+                  Student uploads require Class Representative verification
+                  before public display.
+                </span>
               </div>
             )}
 
@@ -375,7 +407,7 @@ export const ResourcesView: React.FC = () => {
                 type="submit"
                 isLoading={uploadResourceMutation.isPending}
               >
-                {isCRorAdmin ? 'Publish Resource' : 'Submit for Review'}
+                {isCRorAdmin ? "Publish Resource" : "Submit for Review"}
               </Button>
             </div>
           </form>

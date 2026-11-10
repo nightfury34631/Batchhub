@@ -12,6 +12,7 @@ import {
 import { verifyToken, requireRole } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
 router.get("/", verifyToken, getBatchAcademicData);
 router.post("/courses", verifyToken, requireRole("cr", "admin"), addCourse);
 router.put("/courses/:courseId", verifyToken, requireRole("cr", "admin"), updateCourse);
