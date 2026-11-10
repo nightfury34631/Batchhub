@@ -12,8 +12,12 @@ import taskRoutes from "./routes/taskRoutes.js";
 import noticeRoutes from "./routes/noticeRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import searchRoutes from "./routes/searchRoutes.js";
+import path from "path";
+import { fileURLToPath } from "url";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 // Critical Environment Validation
 const isProduction = process.env.NODE_ENV === "production";
