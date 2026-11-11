@@ -1,6 +1,4 @@
 # Environment files (strictly exclude secrets)
-.env
-.env.*
 server/.env
 server/.env.*
 !server/.env.example
@@ -23,7 +21,6 @@ logs/
 *.log
 
 # IDE & Editor files
-.vscode/
 .idea/
 *.suo
 *.ntvs*
@@ -38,3 +35,4 @@ Thumbs.db
 # Archives
 *.zip
 *.tar.gz
+config.bat
